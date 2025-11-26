@@ -1,8 +1,11 @@
 (function executeRule(current, previous /*null when async*/ ) {
     // Require an attachment if this is the CRMC Liaison approving
-	var attachment = new GlideRecord('sys_attachment');
+    // Exclude auto-generated Authority Limits Comparison attachments
+    var attachment = new GlideRecord('sys_attachment');
     attachment.addQuery('table_sys_id', current.sys_id);
+    attachment.addEncodedQuery('file_nameNOT LIKEAuthority_Limits_Comparison_');
     attachment.query();
+    
     if (!attachment.next()) {
         current.setAbortAction(true);
         gs.addErrorMessage('An Attachment is required before approving as CRMC Liaison');
