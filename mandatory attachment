@@ -1,78 +1,10 @@
-(function executeRule(current, previous) {
-    // Create a PDf comparison chart and attach it to the approval record so it can be sent to approvers
-    try {
-        var documentRecord = current.document_id.getRefRecord();
-        
-        if (!documentRecord || !documentRecord.isValidRecord()) {
-            return;
-        }
-
-        var parentSysId;
-        var documentTableName = documentRecord.getTableName();
-
-        if (documentTableName == 'x_banun_bunow_si_0_credit_authority_limits' || 
-            documentTableName == 'x_banun_bunow_si_0_non_credit_authority_limits') {
-            var parent = documentRecord.parent.getRefRecord();
-            if (!parent || !parent.isValidRecord()) {
-                return;
-            }
-            parentSysId = parent.sys_id.toString();
-        } else {
-            parentSysId = documentRecord.sys_id.toString();
-        }
-
-        // Check if PDF already exists on THIS APPROVAL record
-        var existingPDF = new GlideRecord('sys_attachment');
-        existingPDF.addQuery('table_name', 'sysapproval_approver');
-        existingPDF.addQuery('table_sys_id', current.sys_id.toString());
-        existingPDF.addQuery('file_name', 'CONTAINS', 'Authority_Limits_Comparison');
-        existingPDF.addQuery('file_name', 'ENDSWITH', '.pdf');
-        existingPDF.query();
-
-        if (existingPDF.hasNext()) {
-            return;
-        }
-
-        // Get parent record
-        var parentRec = new GlideRecord('x_banun_bunow_si_0_signature_request');
-        if (!parentRec.get(parentSysId)) {
-            return;
-        }
-        
-        // Build HTML content
-        var helper = new x_banun_bunow_si_0.SignatureHelper();
-        var htmlContent = helper._buildHTMLContent(parentRec);
-        
-        if (!htmlContent) {
-            return;
-        }
-
-        // Configure header/footer for landscape PDF
-        var hfInfo = {
-            "FooterText": "Authority Limits Comparison - Generated: " + new GlideDateTime().getDisplayValue(),
-            "PageSize": "A4",
-            "Orientation": "LANDSCAPE",
-            "GeneratePageNumber": "true",
-            "FooterTextAlignment": "BOTTOM_CENTER",
-            "TopOrBottomMargin": "20",
-            "LeftOrRightMargin": "20"
-        };
-        
-        // Generate PDF attached DIRECTLY to APPROVAL record
-        var pdfFileName = 'Authority_Limits_Comparison_' + parentRec.number + '.pdf';
-        var pdfAPI = new sn_pdfgeneratorutils.PDFGenerationAPI();
-        
-        var result = pdfAPI.convertToPDFWithHeaderFooter(
-            htmlContent,
-            'sysapproval_approver',           // Attach to approval table
-            current.sys_id.toString(),        // Attach to THIS approval record
-            pdfFileName,
-            hfInfo
-        );
-        
-
-    } catch (e) {
-        gs.error('PDF Generation Exception: ' + e.message);
+(function executeRule(current, previous /*null when async*/ ) {
+    // Require an attachment if this is the CRMC Liaison approving
+	var attachment = new GlideRecord('sys_attachment');
+    attachment.addQuery('table_sys_id', current.sys_id);
+    attachment.query();
+    if (!attachment.next()) {
+        current.setAbortAction(true);
+        gs.addErrorMessage('An Attachment is required before approving as CRMC Liaison');
     }
-
 })(current, previous);
