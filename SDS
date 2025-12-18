@@ -1,0 +1,2218 @@
+# System Design Specification
+# Signature Authority Management Application
+**BankUnited - ServiceNow Implementation**
+
+---
+
+## Document Control
+
+| Version | Date | Author | Description |
+|---------|------|--------|-------------|
+| 1.0 | December 2025 | Development Team | Initial SDS Release |
+
+---
+
+## Table of Contents
+
+1. [Application Overview](#1-application-overview)
+2. [Technical Architecture](#2-technical-architecture)
+3. [Data Model](#3-data-model)
+4. [Business Logic & Rules](#4-business-logic--rules)
+5. [Security Model](#5-security-model)
+6. [User Interface Design](#6-user-interface-design)
+7. [Workflow Documentation](#7-workflow-documentation)
+8. [Integration Specifications](#8-integration-specifications)
+9. [Email Notifications](#9-email-notifications)
+10. [System Properties & Configuration](#10-system-properties--configuration)
+11. [Maintenance & Operations](#11-maintenance--operations)
+12. [Data Dictionary](#12-data-dictionary)
+13. [Testing Strategy](#13-testing-strategy)
+14. [Deployment & Release](#14-deployment--release)
+
+---
+
+## 1. Application Overview
+
+### 1.1 Application Description
+
+The Signature Authority Management application is a comprehensive ServiceNow-based system designed to manage and govern financial authorization limits across BankUnited's organization. The application provides a centralized platform for requesting, approving, tracking, and maintaining signature authorities for both credit and non-credit financial transactions.
+
+**Core Functionality:**
+
+The system manages the complete lifecycle of signature authority requests through automated approval workflows. Users can request new authorities, modify existing limits, or request removal of authorities through a unified Service Portal interface. Each request undergoes a multi-tiered approval process involving Business Line Approvers, management chains, division executives, and oversight committees (CRMC and ORMC) based on the authority type and requested amounts.
+
+**Key Business Capabilities:**
+
+- **Dual Authority Types**: Manages separate workflows for credit authorities (loans, credit facilities) and non-credit authorities (operational expenses, vendor payments)
+- **Hierarchical Approval Routing**: Automatically routes requests through appropriate approval chains based on job codes, management hierarchy, and authority thresholds
+- **Change Management**: Tracks modifications to existing authorities with comprehensive before/after comparisons for auditing and approval review
+- **Committee Oversight**: Integrates CRMC (Credit Risk Management Committee) and ORMC (Operational Risk Management Committee) liaison reviews with selective approval requirements
+- **Delegate Authority**: Supports temporary and permanent delegation of authority with tracking of original authority holders
+- **Compliance & Audit**: Maintains complete audit trails of all authority changes, approvals, and modifications with PDF documentation generation
+
+**Primary Users:**
+
+- **CRMC Liaisons**: Review and approve all credit-related authority requests
+- **ORMC Liaisons**: Selectively review and approve non-credit authority requests based on business rules
+- **Business Line Approvers**: Initial approvers who verify business justification and need
+- **Division Executives**: Approve requests within their organizational units
+- **Committee Members**: Provide oversight and final approval for high-value authorities
+- **End Users**: Employees requesting authority grants, changes, or removals
+
+**Integration Points:**
+
+The application integrates with BankUnited's existing ServiceNow infrastructure including:
+- Job Code Management System (x_banun_rbac_job_code)
+- User Management and Organizational Hierarchy (sys_user)
+- Group Membership and Committee Management
+- Native ServiceNow Approval Framework (sysapproval_approver)
+
+**Technical Architecture:**
+
+Built entirely within ServiceNow platform using Service Portal for user interface, Flow Designer for workflow orchestration, Script Includes for business logic, and Access Control Lists for security. The system utilizes a parent-child table structure with the main signature request table linked to separate child tables for credit and non-credit authority limits, enabling flexible management of multiple authority types within a single request.
+
+### 1.2 Business Objectives
+
+- Centralize signature authority management across all business lines
+- Automate approval workflows to reduce processing time and manual errors
+- Ensure regulatory compliance through comprehensive audit trails
+- Provide real-time visibility into authority limits and changes
+- Streamline committee oversight processes for CRMC and ORMC
+- Enable efficient delegation and temporary authority management
+
+### 1.3 Scope
+
+**In Scope:**
+- New authority requests for credit and non-credit transactions
+- Modifications to existing authority limits
+- Authority removal requests
+- Multi-level approval workflows
+- Committee liaison approvals (CRMC/ORMC)
+- Email notifications with PDF attachments
+- Audit trail and change tracking
+- Service Portal user interface
+- Integration with job code and user management systems
+
+**Out of Scope:**
+- External banking system integrations for transaction processing
+- Real-time transaction monitoring or fraud detection
+- Customer-facing authority interfaces
+- Financial reporting and analytics beyond authority tracking
+
+---
+
+## 2. Technical Architecture
+
+### 2.1 Platform & Technology Stack
+
+**ServiceNow Platform:**
+- Platform Version: Latest ServiceNow release
+- Application Scope: Custom Scoped Application
+- Development Tools: Flow Designer, Script Includes, Business Rules, UI Actions, Service Portal
+
+**Key Technologies:**
+- **Frontend**: Angular-based Service Portal widgets
+- **Backend**: Server-side JavaScript (Rhino engine)
+- **Database**: ServiceNow GlideRecord API
+- **Workflow Engine**: Flow Designer
+- **Security**: Access Control Lists (ACLs)
+- **Notifications**: Email with PDF generation
+
+### 2.2 Application Components
+
+**Service Portal Components:**
+- Custom Service Portal page for signature authority requests
+- Widget-based interface with dynamic form sections
+- Auto-search functionality for user selection
+- Real-time validation and field dependencies
+
+**Server-Side Components:**
+- Script Includes for business logic centralization
+- Business Rules for automated processing
+- Scheduled Jobs for reminder notifications
+- Flow Designer flows for approval orchestration
+
+**Database Components:**
+- Parent-child table relationships
+- Reference fields for data integrity
+- Integer fields for currency amounts (avoiding decimal display issues)
+- Duplicate "original_" prefixed fields for change tracking
+
+**Security Components:**
+- Role-based Access Control Lists
+- Field-level and table-level permissions
+- Surgical approver access controls
+- Admin override capabilities
+
+### 2.3 System Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Service Portal Layer                     │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │  Request     │  │  Approval    │  │  Dashboard   │      │
+│  │  Widget      │  │  Widget      │  │  Widget      │      │
+│  └──────────────┘  └──────────────┘  └──────────────┘      │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   Business Logic Layer                       │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │  Script      │  │  Business    │  │  Flow        │      │
+│  │  Includes    │  │  Rules       │  │  Designer    │      │
+│  └──────────────┘  └──────────────┘  └──────────────┘      │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      Data Layer                              │
+│  ┌──────────────────────────────────────────────────┐       │
+│  │         Signature Request (Parent Table)         │       │
+│  └──────────────────────────────────────────────────┘       │
+│           │                              │                   │
+│           ▼                              ▼                   │
+│  ┌─────────────────┐          ┌─────────────────┐          │
+│  │  Credit         │          │  Non-Credit     │          │
+│  │  Authority      │          │  Authority      │          │
+│  │  (Child Table)  │          │  (Child Table)  │          │
+│  └─────────────────┘          └─────────────────┘          │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   Integration Layer                          │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │  Job Code    │  │  User        │  │  Approval    │      │
+│  │  System      │  │  Management  │  │  System      │      │
+│  └──────────────┘  └──────────────┘  └──────────────┘      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 2.4 ServiceNow-Specific Considerations
+
+**Platform Limitations & Workarounds:**
+
+1. **Math Functions**: ServiceNow's Rhino JavaScript engine doesn't support standard Math functions in all contexts
+   - Solution: Use `parseInt()` for numeric conversions and comparisons
+
+2. **Field Type Selection**: Currency fields display unwanted decimals
+   - Solution: Use Integer fields for all monetary amounts
+   - Display formatting handled in UI layer
+
+3. **ACL Hierarchy**: Table-level ACLs override field-level ACLs
+   - Solution: Combine admin access and surgical approver permissions in single ACL rules
+   - Use complex OR logic rather than separate rules
+
+4. **Method Availability**: `.nil()` and other methods vary by context (server-side vs client-side)
+   - Solution: Explicitly check for undefined, null, and empty string conditions
+
+### 2.5 Performance Considerations
+
+**Query Optimization:**
+- Index key reference fields (requested_for, approver references)
+- Limit GlideRecord queries with addQuery filters before iteration
+- Use GlideAggregate for count and sum operations
+
+**Caching Strategy:**
+- Cache job code lookups in Script Includes
+- Store frequently accessed system properties in memory
+- Minimize repeated database queries in loops
+
+**Scheduled Job Optimization:**
+- Run reminder jobs only on business days
+- Batch process notifications to avoid email flooding
+- Implement rate limiting for external API calls
+
+---
+
+## 3. Data Model
+
+### 3.1 Table Structure
+
+#### 3.1.1 Parent Table: Signature Request
+
+**Table Name**: `u_signature_request` (example naming)
+
+**Purpose**: Main table capturing all signature authority requests including request type, requester information, and workflow state.
+
+**Key Fields:**
+
+| Field Name | Type | Description | Required |
+|------------|------|-------------|----------|
+| number | String | Auto-generated request number | Yes |
+| requested_for | Reference (sys_user) | Employee receiving authority | Yes |
+| request_type | Choice | New, Change, Remove | Yes |
+| state | Choice | Draft, Submitted, In Approval, Approved, Rejected, Cancelled | Yes |
+| job_code | Reference (x_banun_rbac_job_code) | Job code of requested_for user | Yes |
+| business_line_approver | Reference (sys_user) | Initial business approver | No |
+| division_executive | Reference (sys_user) | Division head approver | No |
+| justification | String (Long) | Business justification for request | Yes |
+| has_credit_authority | Boolean | Indicates credit authority requested | No |
+| has_non_credit_authority | Boolean | Indicates non-credit authority requested | No |
+| delegate_user | Reference (sys_user) | If authority is delegated | No |
+| delegate_authority_amount | Integer | Amount delegated to delegate user | No |
+| is_temporary_delegate | Boolean | Temporary vs permanent delegation | No |
+| original_authority_holder | Reference (sys_user) | Original holder for delegated authority | No |
+| submitted_date | Date/Time | When request was submitted | No |
+| approved_date | Date/Time | When final approval granted | No |
+| comments | Journal | Approver comments and notes | No |
+
+#### 3.1.2 Child Table: Credit Authority
+
+**Table Name**: `u_credit_authority` (example naming)
+
+**Purpose**: Stores credit-related authority limits linked to parent signature request.
+
+**Key Fields:**
+
+| Field Name | Type | Description | Required |
+|------------|------|-------------|----------|
+| signature_request | Reference (u_signature_request) | Parent request record | Yes |
+| authority_type | String | Type of credit authority | Yes |
+| requested_amount | Integer | Requested limit amount | Yes |
+| current_amount | Integer | Current authority limit (for changes) | No |
+| original_amount | Integer | Original amount before change | No |
+| approval_required | Boolean | Whether approval needed for this item | Yes |
+| crmc_approval_required | Boolean | CRMC liaison approval needed | Yes |
+| committee_member | Reference (sys_user) | Committee member who must approve | No |
+
+**Visual Styling**: Red section header in UI to indicate credit category
+
+#### 3.1.3 Child Table: Non-Credit Authority
+
+**Table Name**: `u_non_credit_authority` (example naming)
+
+**Purpose**: Stores non-credit related authority limits linked to parent signature request.
+
+**Key Fields:**
+
+| Field Name | Type | Description | Required |
+|------------|------|-------------|----------|
+| signature_request | Reference (u_signature_request) | Parent request record | Yes |
+| authority_type | String | Type of non-credit authority | Yes |
+| requested_amount | Integer | Requested limit amount | Yes |
+| current_amount | Integer | Current authority limit (for changes) | No |
+| original_amount | Integer | Original amount before change | No |
+| approval_required | Boolean | Whether approval needed for this item | Yes |
+| ormc_approval_required | Boolean | ORMC liaison approval needed | Yes |
+| committee_member | Reference (sys_user) | Committee member who must approve | No |
+
+**Visual Styling**: Green section header in UI to indicate non-credit category
+
+### 3.2 Relationships
+
+**Parent-Child Relationships:**
+```
+u_signature_request (1)
+    ├── u_credit_authority (0..*)
+    └── u_non_credit_authority (0..*)
+```
+
+**Reference Relationships:**
+```
+u_signature_request
+    ├── requested_for → sys_user
+    ├── job_code → x_banun_rbac_job_code
+    ├── business_line_approver → sys_user
+    ├── division_executive → sys_user
+    ├── delegate_user → sys_user
+    └── original_authority_holder → sys_user
+
+u_credit_authority
+    ├── signature_request → u_signature_request
+    └── committee_member → sys_user
+
+u_non_credit_authority
+    ├── signature_request → u_signature_request
+    └── committee_member → sys_user
+```
+
+**Approval System Integration:**
+```
+u_signature_request (1) → sysapproval_approver (*)
+    - Links to ServiceNow native approval records
+    - Tracks approval state, approver, and timestamps
+```
+
+### 3.3 Data Integrity Rules
+
+**Referential Integrity:**
+- All reference fields enforce valid references (no orphaned records)
+- Deletion of parent request cascades to child authority records
+- User references must point to active users for new requests
+
+**Field Validation:**
+- Integer amounts must be positive values
+- Request type must be one of: New, Change, Remove
+- Change requests require original_amount to be populated
+- At least one authority type (credit or non-credit) must be selected
+
+**Change Tracking:**
+- Original values stored in "original_" prefixed fields
+- Changes detected by comparing requested vs current values
+- Audit trail maintained in system fields (created_by, updated_by, sys_created_on, sys_updated_on)
+
+### 3.4 Data Volume Estimates
+
+**Expected Transaction Volumes:**
+- New Requests: 50-100 per month
+- Change Requests: 30-50 per month
+- Remove Requests: 10-20 per month
+- Total Annual Records: ~1,000-2,000 new signature requests
+
+**Data Retention:**
+- Active requests: Indefinite retention
+- Approved requests: 7 years (regulatory requirement)
+- Rejected/Cancelled: 2 years
+- Audit logs: 7 years
+
+---
+
+## 4. Business Logic & Rules
+
+### 4.1 Request Type Logic
+
+#### 4.1.1 New Authority Requests
+
+**Trigger Conditions:**
+- User selects "New" as request type
+- No existing authority exists for the requested_for user
+- Fresh authority grant with no current limits
+
+**Business Rules:**
+- Original amount fields remain empty (no previous authority)
+- All requested authorities require full approval chain
+- CRMC liaison approves ALL credit authorities
+- ORMC liaison approves SELECTED non-credit authorities based on thresholds
+
+**Approval Chain:**
+1. Business Line Approver
+2. Management chain (up to Division Executive)
+3. CRMC Liaison (for any credit authority)
+4. ORMC Liaison (for qualifying non-credit authority)
+5. Committee Members (if authority exceeds threshold)
+
+#### 4.1.2 Change Authority Requests
+
+**Trigger Conditions:**
+- User selects "Change" as request type
+- Existing authority exists for the requested_for user
+- Modification to current authority limits
+
+**Business Rules:**
+- System populates current_amount from existing authority records
+- Original amount fields store pre-change values for comparison
+- Only authorities with actual changes require approval
+- Unchanged authorities bypass approval workflow
+
+**Change Detection Logic:**
+- Compare requested_amount to current_amount for each authority
+- If amounts differ, set approval_required flag to true
+- Store current_amount in original_amount field for audit trail
+- If amounts match, set approval_required to false (no approval needed)
+
+**Approval Chain:**
+- Same as new requests but only for modified authorities
+- Approvers see before/after comparison in emails
+- PDF attachment shows comprehensive change comparison
+
+#### 4.1.3 Remove Authority Requests
+
+**Trigger Conditions:**
+- User selects "Remove" as request type
+- Existing authority must exist to remove
+- Complete revocation of authority
+
+**Business Rules:**
+- All existing authorities are flagged for removal
+- Shortened approval chain (no committee approvals typically required)
+- Original amounts stored for audit purposes
+- Final approval deactivates authority records
+
+**Approval Chain:**
+1. Business Line Approver
+2. Management chain (may skip division executive based on amount)
+3. CRMC/ORMC Liaison (notification only, no approval)
+
+### 4.2 Approval Routing Logic
+
+#### 4.2.1 Business Line Approver Selection
+
+**Determination Logic:**
+- Based on job code of requested_for user
+- Lookup in job code table for designated approver
+- Falls back to manager if no specific approver defined
+- Can be manually specified by requester
+
+**Auto-population:**
+- Service Portal widget queries job code table on user selection
+- Pre-fills business_line_approver field
+- User can override if necessary
+
+#### 4.2.2 Management Chain Routing
+
+**Hierarchy Traversal:**
+1. Start with manager of requested_for user
+2. Continue up management chain until reaching Division Executive
+3. Skip levels if manager has approval authority exceeding request amount
+4. Stop at first manager with sufficient delegated approval authority
+
+**Delegation Logic:**
+- Check if manager is in delegate authority group
+- Compare manager's delegated amount vs requested amounts
+- If manager amount >= all requested amounts, manager approves and chain stops
+- Otherwise, continue up chain
+
+**Division Executive Determination:**
+- Identified by specific job codes or role membership
+- Always included for high-value requests (threshold defined in system properties)
+- May be skipped for low-value routine changes
+
+#### 4.2.3 CRMC Liaison Approval Logic
+
+**Trigger Conditions:**
+- ANY credit authority requested (new or change)
+- Credit authority amount > $0
+- Request type is not "Remove"
+
+**Approval Requirements:**
+- CRMC liaison MUST approve every credit authority request
+- No threshold bypassing for credit authorities
+- Liaison members identified by group membership
+- Round-robin or queue-based assignment
+
+**CRMC Liaison Assignment:**
+- Check if request has_credit_authority flag is true
+- Verify request_type is not "Remove"
+- Retrieve CRMC liaison group from system property
+- Get group members
+- Assign approval to liaison (round-robin or specific assignment logic)
+- Create approval record
+
+#### 4.2.4 ORMC Liaison Approval Logic
+
+**Trigger Conditions:**
+- Non-credit authority requested
+- Request meets specific business rule criteria
+- Amount exceeds defined threshold OR
+- Authority type is on high-risk list
+
+**Selective Approval Rules:**
+- Not all non-credit requests require ORMC approval
+- Thresholds defined per authority type in system properties
+- High-risk authority types always require approval
+- Low-value routine requests bypass ORMC
+
+**ORMC Liaison Assignment:**
+- Check if request has non-credit authority
+- For each non-credit authority, evaluate if it meets ORMC criteria:
+  - Requested amount exceeds threshold OR
+  - Authority type is in high-risk list
+- If any authority meets criteria, set ormc_approval_required flag
+- If ORMC approval required, assign to ORMC liaison from group
+- Create approval record
+
+#### 4.2.5 Committee Member Approval
+
+**Trigger Conditions:**
+- Authority amount exceeds committee review threshold
+- CEO-level approval required
+- High-risk or unusual authority type
+
+**Committee Designation:**
+- Committee members identified in job code records
+- Specific member assigned based on division or business line
+- Multiple committee members may be required for very high amounts
+
+**Approval Thresholds:**
+- Defined in system properties per authority type
+- Typically: >$10M requires committee approval
+- CEO approval: >$50M or specific high-risk authorities
+
+### 4.3 Business Rules (Server-Side)
+
+#### 4.3.1 Before Insert/Update Rules
+
+**Rule: Validate Request Data**
+- **Trigger**: Before insert or update on u_signature_request
+- **Logic**: 
+  - Ensure at least one authority type is selected
+  - Validate requested_for user is active
+  - Check job code exists and is valid
+  - Verify amounts are positive integers
+
+**Rule: Set Original Values for Changes**
+- **Trigger**: Before insert on u_credit_authority or u_non_credit_authority when request_type = "Change"
+- **Logic**:
+  - Query existing authority records for requested_for user
+  - Populate original_amount fields with current values
+  - Set change detection flags
+
+**Rule: Calculate Approval Requirements**
+- **Trigger**: Before insert/update on child authority tables
+- **Logic**:
+  - Compare requested vs current amounts
+  - Set approval_required flag based on change detection
+  - Determine CRMC/ORMC approval needs based on thresholds
+
+#### 4.3.2 After Insert/Update Rules
+
+**Rule: Initiate Approval Workflow**
+- **Trigger**: After insert on u_signature_request when state = "Submitted"
+- **Logic**:
+  - Call Flow Designer flow to start approval process
+  - Create initial approval records
+  - Send notification to Business Line Approver
+
+**Rule: Update Parent on Child Changes**
+- **Trigger**: After insert/update on u_credit_authority or u_non_credit_authority
+- **Logic**:
+  - Update parent request has_credit_authority or has_non_credit_authority flags
+  - Recalculate total requested amounts
+  - Update state if all approvals complete
+
+**Rule: Deactivate Authority on Removal**
+- **Trigger**: After update on u_signature_request when state = "Approved" and request_type = "Remove"
+- **Logic**:
+  - Mark existing authority records as inactive
+  - Archive original authority data
+  - Send final notification to requested_for user
+
+### 4.4 Calculation Logic
+
+#### 4.4.1 Total Authority Amount
+
+**Purpose**: Calculate aggregate authority across all types
+
+**Logic:**
+- Query all credit authority records linked to the request
+- Sum the requested_amount field values using integer addition
+- Query all non-credit authority records linked to the request  
+- Sum the requested_amount field values using integer addition
+- Add credit total and non-credit total for grand total
+- Note: Use parseInt() for calculations due to ServiceNow platform limitations with Math functions
+
+#### 4.4.2 Change Amount Delta
+
+**Purpose**: Calculate increase or decrease in authority
+
+**Logic:**
+- Subtract original_amount from requested_amount to get delta
+- If delta is positive, it's an increase
+- If delta is negative, it's a decrease  
+- Calculate absolute value of delta for display purposes
+- Use parseInt() for numeric operations
+
+### 4.5 State Transition Logic
+
+**State Flow:**
+```
+Draft → Submitted → In Approval → Approved
+                               → Rejected
+                               → Cancelled
+```
+
+**State Definitions:**
+
+- **Draft**: Initial state, editable by requester
+- **Submitted**: Request submitted, no longer editable, awaiting first approval
+- **In Approval**: Active approvals in progress
+- **Approved**: All approvals granted, authority granted/changed/removed
+- **Rejected**: Any approval rejected, request terminated
+- **Cancelled**: Requester or admin cancelled before completion
+
+**Transition Rules:**
+- Only requester can move from Draft to Submitted
+- System automatically moves to In Approval when first approval created
+- Approval/Rejection triggers state change
+- Admin can force state change with proper permissions
+
+---
+
+## 5. Security Model
+
+### 5.1 Role Definitions
+
+#### 5.1.1 Application Roles
+
+**Role: signature_authority_admin**
+- **Purpose**: Full administrative access to all application tables and functions
+- **Permissions**:
+  - Read, Write, Delete on all signature authority tables
+  - Override field-level restrictions
+  - View all requests regardless of ownership
+  - Cancel or modify any request
+  - Access system configuration and properties
+
+**Role: signature_authority_user**
+- **Purpose**: Standard user role for creating and viewing own requests
+- **Permissions**:
+  - Create new signature requests
+  - Read own requests (where requested_for = current user OR created_by = current user)
+  - Edit own requests in Draft state only
+  - Submit requests for approval
+  - View approval status and comments
+
+**Role: signature_authority_approver**
+- **Purpose**: Base role for all types of approvers
+- **Permissions**:
+  - Read requests where user is current approver
+  - Approve or reject assigned approvals
+  - Add comments to approval records
+  - View approval history
+
+**Role: signature_authority_crmc_liaison**
+- **Purpose**: CRMC liaison specific permissions
+- **Inherits**: signature_authority_approver
+- **Permissions**:
+  - View all credit authority requests
+  - Approve/reject credit authorities
+  - Access CRMC dashboard and reports
+  - Receive all credit authority notifications
+
+**Role: signature_authority_ormc_liaison**
+- **Purpose**: ORMC liaison specific permissions
+- **Inherits**: signature_authority_approver
+- **Permissions**:
+  - View all non-credit authority requests meeting ORMC criteria
+  - Approve/reject qualifying non-credit authorities
+  - Access ORMC dashboard and reports
+  - Receive selective non-credit notifications
+
+**Role: signature_authority_business_approver**
+- **Purpose**: Business Line Approver permissions
+- **Inherits**: signature_authority_approver
+- **Permissions**:
+  - View requests for their business line
+  - First-level approval authority
+  - Cannot modify request details, only approve/reject
+
+### 5.2 Access Control Lists (ACLs)
+
+#### 5.2.1 Table-Level ACLs
+
+**Table: u_signature_request**
+
+**Read ACL:**
+User can read a signature request record if ANY of the following conditions are true:
+- User has signature_authority_admin role
+- User is the requested_for person
+- User is the creator (sys_created_by)
+- User is a current approver with active approval
+- User is CRMC liaison and request has credit authority
+- User is ORMC liaison and request has qualifying non-credit authority
+
+Current approver check:
+- Query sysapproval_approver table for the request
+- Filter by current user as approver
+- Filter by state = 'requested'
+- Return true if any active approvals found
+
+ORMC qualification check:
+- Query u_non_credit_authority records for the request
+- Check if any have ormc_approval_required = true
+- Return true if any qualifying authorities found
+
+**Write ACL:**
+User can write to signature request record if:
+- User has signature_authority_admin role, OR
+- User is the creator AND record state is 'draft'
+
+**Delete ACL:**
+User can delete signature request record if:
+- User has signature_authority_admin role only
+
+#### 5.2.2 Field-Level ACLs
+
+**Critical Note**: Table-level ACLs override field-level ACLs in ServiceNow. When both admin access and surgical approver permissions are needed, combine logic in a single ACL rule.
+
+**Field: state (u_signature_request)**
+
+**Write ACL:**
+User can write to state field if:
+- User has signature_authority_admin role, OR
+- System (non-interactive) is making the update (allows workflow/business rules to update state)
+
+**Field: business_line_approver (u_signature_request)**
+
+**Read ACL:**
+Anyone who can read the parent record can see the business_line_approver field (controlled by table-level ACL)
+
+**Write ACL:**
+User can write to business_line_approver field if:
+- User has signature_authority_admin role, OR
+- User is the creator AND record state is 'draft'
+
+**Field: requested_amount (u_credit_authority, u_non_credit_authority)**
+
+**Write ACL:**
+User can write to requested_amount field if:
+- User has signature_authority_admin role, OR
+- User is the creator of the parent request AND parent request state is 'draft'
+
+Note: Requires getting parent signature request record to check state and creator
+
+#### 5.2.3 Current Approver Surgical Access
+
+**Challenge**: Approvers need read access to specific requests without admin privileges, but table-level ACLs override field-level ACLs.
+
+**Solution**: Combined ACL logic at table level that checks multiple conditions:
+
+User can read signature request if ANY of these conditions are met:
+- User has signature_authority_admin role
+- User is the requested_for person
+- User is the creator (sys_created_by)
+- User has active approval for this request (surgical access)
+- User is CRMC liaison AND request has credit authority
+- User is ORMC liaison AND request has qualifying non-credit authority
+
+Helper functions needed:
+- hasActiveApproval: Query sysapproval_approver for current user with state='requested'
+- hasORMCApprovalRequired: Query u_non_credit_authority for records with ormc_approval_required=true
+
+### 5.3 Data Privacy & Compliance
+
+**Logging Restrictions:**
+- User names should NOT be logged in custom logging statements
+- Use sys_id references only in logs for traceability
+- Avoid logging sensitive financial amounts in clear text
+
+**Audit Trail:**
+- System automatically tracks created_by, created_on, updated_by, updated_on
+- Approval records maintain complete history in sysapproval_approver
+- Changes tracked through original_ prefixed fields
+- PDF attachments provide point-in-time snapshots
+
+**Data Masking:**
+- Authority amounts visible only to authorized users
+- Requester information protected by role-based access
+- Approval comments visible only to approvers and admin
+
+### 5.4 Group Memberships
+
+**CRMC Liaison Group:**
+- Group name: `signature_authority_crmc_liaisons`
+- Members: Users with signature_authority_crmc_liaison role
+- Purpose: Identify eligible CRMC approvers
+
+**ORMC Liaison Group:**
+- Group name: `signature_authority_ormc_liaisons`
+- Members: Users with signature_authority_ormc_liaison role
+- Purpose: Identify eligible ORMC approvers
+
+**Committee Members Group:**
+- Group name: `signature_authority_committee`
+- Members: Executive committee members requiring notification
+- Purpose: High-value approval routing
+
+**Delegate Authority Group:**
+- Group name: `signature_authority_delegates`
+- Members: Managers with delegated approval authority
+- Purpose: Identify users who can short-circuit approval chains
+
+---
+
+## 6. User Interface Design
+
+### 6.1 Service Portal Architecture
+
+**Portal Name**: Employee Service Center (or custom portal)
+
+**Portal Page**: Signature Authority Request
+
+**URL Structure**: 
+- Main page: `/sp?id=signature_authority_request`
+- Edit request: `/sp?id=signature_authority_request&sys_id={request_sys_id}`
+- View only: `/sp?id=signature_authority_view&sys_id={request_sys_id}`
+
+### 6.2 Widget Design
+
+#### 6.2.1 Request Form Widget
+
+**Widget Name**: Signature Authority Request Form
+
+**Key Features:**
+- Single-page form with collapsible sections
+- Dynamic field visibility based on request type
+- Auto-search for user selection with keyboard navigation
+- Real-time validation
+- Visual separation of credit (red) vs non-credit (green) sections
+- Context preservation when navigating away
+
+**Sections:**
+
+1. **Request Information Section**
+   - Request Type (Choice: New, Change, Remove)
+   - Requested For (User reference with auto-search)
+   - Job Code (Auto-populated from selected user, read-only)
+   - Business Line Approver (Auto-populated, overridable)
+   - Justification (Long text, required)
+
+2. **Delegation Information Section** (Conditional display)
+   - Delegate User (User reference)
+   - Delegate Authority Amount (Integer)
+   - Is Temporary Delegate (Checkbox)
+   - Original Authority Holder (User reference, if delegate)
+
+3. **Credit Authority Section** (Red header, repeatable entries)
+   - Authority Type (Choice list)
+   - Requested Amount (Integer, currency formatted in display)
+   - Current Amount (Integer, read-only for Change requests)
+   - Add/Remove credit authority buttons
+
+4. **Non-Credit Authority Section** (Green header, repeatable entries)
+   - Authority Type (Choice list)
+   - Requested Amount (Integer, currency formatted in display)
+   - Current Amount (Integer, read-only for Change requests)
+   - Add/Remove non-credit authority buttons
+
+**Client-Side Functionality:**
+
+User Search with Keyboard Navigation:
+- Triggers search when user types 2+ characters
+- Calls server to retrieve matching users
+- Displays dropdown with results
+- Supports arrow key navigation and Enter to select
+
+User Selection Handler:
+- Sets requested_for field to selected user
+- Hides dropdown after selection
+- Auto-populates job code from user record
+- Auto-populates business line approver based on job code
+
+Request Type Change Handler:
+- Shows/hides current amount fields based on type
+- For "Change" requests, loads existing authority records
+- Adjusts form layout dynamically
+
+Add/Remove Authority Functions:
+- Adds new credit or non-credit authority entry to form
+- Removes authority entry from list
+- Maintains separate arrays for credit and non-credit
+
+Form Validation:
+- Validates requested_for user is selected
+- Ensures justification has minimum length
+- Verifies at least one authority is requested
+- Displays error messages if validation fails
+
+Submit Request:
+- Validates form before submission
+- Calls server to create request and child records
+- Displays success message with request number
+- Redirects to view page on success
+- Shows error message if submission fails
+
+**Server-Side Functionality:**
+
+Uses SignatureAuthorityUtils Script Include for all business logic operations:
+
+- **searchUsers**: Searches sys_user table based on input term, returns matching users with relevant fields
+- **getUserDetails**: Retrieves job code and business approver for selected user
+- **submitRequest**: Creates signature request parent record and related credit/non-credit child records, returns request number and sys_id
+- **load**: When editing existing request, loads parent record data and related credit/non-credit authorities for display
+
+All server operations use try-catch error handling and return success/error status to client.
+
+#### 6.2.2 Approval Widget
+
+**Widget Name**: Signature Authority Approval
+
+**Purpose**: Display approval details and allow approvers to approve/reject
+
+**Key Features:**
+- Read-only display of request details
+- Before/after comparison for change requests
+- Credit vs non-credit visual separation
+- Approve/Reject buttons
+- Comment field for approver notes
+- Approval history timeline
+
+**Layout:**
+
+1. **Request Summary**
+   - Request number, type, state
+   - Requested for user name and job code
+   - Submission date
+   - Current approver highlight
+
+2. **Authority Details**
+   - Credit authorities (red section)
+   - Non-credit authorities (green section)
+   - For changes: side-by-side current vs requested comparison
+   - Total amounts calculated
+
+3. **Approval Actions**
+   - Approve button (green)
+   - Reject button (red)
+   - Comment text area (required for rejection)
+   - Delegate approval option
+
+4. **Approval Timeline**
+   - Chronological list of all approvals
+   - Approver name, action, date, comments
+   - Visual indicator for pending approvals
+
+**Client-Side Functionality:**
+
+Approve Request:
+- Prompts user for confirmation
+- Sends approval action to server with approver comments
+- Refreshes approval status on success
+- Displays success or error message
+
+Reject Request:
+- Validates that comments are provided (required for rejection)
+- Prompts user for confirmation
+- Sends rejection action to server with comments
+- Refreshes approval status
+- Displays success or error message
+
+Load Approval Status:
+- Retrieves current approval timeline
+- Updates display with latest approval states
+- Highlights current user's pending approval if applicable
+
+#### 6.2.3 Dashboard Widget
+
+**Widget Name**: Signature Authority Dashboard
+
+**Purpose**: Provide liaisons and admins with overview of all requests
+
+**Key Features:**
+- Filtered list views (My Approvals, All Pending, Recently Approved, etc.)
+- Count widgets showing pending approvals by type
+- Search and filter capabilities
+- Quick links to individual requests
+
+**Dashboard Sections:**
+
+1. **Summary Metrics**
+   - Total pending approvals (for current user)
+   - CRMC pending count
+   - ORMC pending count
+   - Requests awaiting my approval
+
+2. **Request Lists**
+   - My Pending Approvals (sortable table)
+   - All Active Requests (admin view)
+   - Recently Completed (last 30 days)
+   - Overdue Reminders
+
+3. **Quick Filters**
+   - Request type (New, Change, Remove)
+   - Authority type (Credit, Non-Credit)
+   - State (Submitted, In Approval, etc.)
+   - Date range
+
+### 6.3 Form Views (Backend)
+
+#### 6.3.1 Request Form View
+
+**Form Layout**:
+- Section 1: Request Information
+- Section 2: Requester Details (read-only display of requested_for info)
+- Section 3: Credit Authorities (related list)
+- Section 4: Non-Credit Authorities (related list)
+- Section 5: Approval Information (related list of approvals)
+- Section 6: Activity Log (journal field)
+
+**UI Policies:**
+- Hide delegation fields unless is_delegate checkbox checked
+- Make current_amount fields read-only for Change requests
+- Show/hide sections based on request_type
+
+**UI Actions:**
+- Submit for Approval
+- Cancel Request
+- Save Draft
+- View PDF (generate PDF of current state)
+
+#### 6.3.2 Approval Form View
+
+**Form Layout**:
+- Section 1: Approval Details (approval record fields)
+- Section 2: Request Summary (read-only reference display)
+- Section 3: Authority Comparison (custom formatter showing before/after)
+
+**UI Actions:**
+- Approve
+- Reject
+- Reassign
+- Add Comments
+
+### 6.4 Styling & Branding
+
+**Color Scheme:**
+- Credit sections: Red headers (#dc3545 or bank brand red)
+- Non-Credit sections: Green headers (#28a745 or bank brand green)
+- Primary buttons: Bank brand blue
+- Success messages: Green
+- Error messages: Red
+- Warning messages: Orange/Yellow
+
+**Typography:**
+- Headers: Bank's corporate font (or ServiceNow default)
+- Body text: Clean sans-serif
+- Amounts: Monospace for currency alignment
+
+**Responsive Design:**
+- Mobile-friendly Service Portal widgets
+- Collapsible sections for smaller screens
+- Touch-friendly button sizing
+- Readable font sizes on mobile
+
+**Accessibility:**
+- ARIA labels on all interactive elements
+- Keyboard navigation support
+- High contrast ratios
+- Screen reader compatible
+
+---
+
+## 7. Workflow Documentation
+
+### 7.1 Flow Designer Overview
+
+**Primary Flow**: Signature Authority Approval Workflow
+
+**Trigger**: Record inserted or updated on u_signature_request where state = "Submitted"
+
+**Flow Purpose**: Orchestrate multi-level approval routing based on request type, authority amounts, and organizational hierarchy
+
+### 7.2 Flow Architecture
+
+**Flow Components:**
+1. Flow Variables (request details, approval lists)
+2. Decision Gates (authority type checks, threshold comparisons)
+3. Approval Actions (create approver records)
+4. Notification Actions (send emails, create tasks)
+5. Subflows (reusable approval creation logic)
+
+### 7.3 Main Approval Flow
+
+**Flow Name**: Signature Authority - Main Approval Flow
+
+#### Stage 1: Initialize and Validate
+
+**Actions:**
+1. Get signature request record details
+2. Get related credit authorities
+3. Get related non-credit authorities
+4. Validate request has at least one authority
+5. Calculate total requested amounts
+6. Set flow variables for approval routing
+
+**Decision Point**: Request Type
+- If "New" → Proceed to full approval chain
+- If "Change" → Check for actual changes, proceed if found
+- If "Remove" → Proceed to shortened approval chain
+
+#### Stage 2: Business Line Approval
+
+**Actions:**
+1. Create approval record for business_line_approver
+2. Wait for approval response
+3. If approved → Continue to Stage 3
+4. If rejected → End flow, set request state to Rejected
+5. Send notification email to business approver with PDF attachment
+
+**Approval Record Creation:**
+- Creates approval record in sysapproval_approver table
+- Links to signature request via document_id
+- Sets approver user reference
+- Calculates due date (3 business days from creation)
+
+#### Stage 3: Management Chain Approval
+
+**Actions:**
+1. Get manager of requested_for user
+2. Check if manager is in delegate authority group
+3. If manager has sufficient delegated authority → Manager approves, skip to Stage 4
+4. If not → Create approval for manager, traverse up chain
+5. Continue until reaching Division Executive
+
+**Subflow**: Get Next Manager Approver
+- Input: Current manager sys_id, total requested amount
+- Output: Next approver sys_id OR division executive reached flag
+- Logic: Check delegated authority, traverse hierarchy
+
+**Traversal Logic:**
+- Start with manager of requested_for user
+- Check if manager has sufficient delegated authority to approve
+- If yes, manager approves and chain stops
+- If no, create approval record and move to next level manager
+- Continue until reaching Division Executive or manager with sufficient authority
+- Include safety checks to prevent infinite loops
+
+#### Stage 4: CRMC Liaison Approval (Conditional)
+
+**Decision Point**: Has Credit Authority?
+- If yes → Proceed with CRMC approval
+- If no → Skip to Stage 5
+
+**Actions:**
+1. Get CRMC liaison from designated group
+2. Create approval record for CRMC liaison
+3. Wait for CRMC approval response
+4. Send email notification with comprehensive PDF showing all credit authorities
+
+**CRMC Assignment Logic:**
+- Retrieve CRMC liaison group from system property
+- Get list of group members
+- Assign to liaison (using round-robin or first available)
+- Create approval record for assigned liaison
+
+#### Stage 5: ORMC Liaison Approval (Conditional)
+
+**Decision Point**: Has Non-Credit Authority Requiring ORMC?
+- Check each non-credit authority for ormc_approval_required flag
+- If any = true → Proceed with ORMC approval
+- If none → Skip to Stage 6
+
+**Actions:**
+1. Get ORMC liaison from designated group
+2. Create approval record for ORMC liaison
+3. Wait for ORMC approval response
+4. Send email notification with PDF showing qualifying non-credit authorities
+
+**ORMC Criteria Check:**
+- Query non-credit authority records for the request
+- Check each record's ormc_approval_required flag
+- If any record requires ORMC approval, retrieve ORMC liaison group
+- Get list of group members
+- Assign to liaison (first available or round-robin)
+- Create approval record for assigned liaison
+
+#### Stage 6: Committee Member Approval (Conditional)
+
+**Decision Point**: Authority Amount Exceeds Committee Threshold?
+- Check total requested amount against threshold (e.g., $10M)
+- Check if authority type requires CEO approval
+- If yes → Proceed with committee approval
+- If no → Skip to Stage 7
+
+**Actions:**
+1. Identify appropriate committee member from job code or business line
+2. Create approval record for committee member
+3. Wait for committee approval response
+4. Send high-priority notification
+
+**Committee Assignment Logic:**
+- Compare total requested amount against committee threshold from system property
+- If amount exceeds threshold, identify appropriate committee member
+- Use division executive's committee member reference or business line mapping
+- Create approval record for identified committee member
+
+#### Stage 7: Finalization
+
+**Actions:**
+1. Check if all approvals granted
+2. If all approved:
+   - Update request state to "Approved"
+   - Update approved_date field
+   - Grant/update/remove authorities based on request type
+   - Send final notification to requested_for user
+3. If any rejected:
+   - Update request state to "Rejected"
+   - Send rejection notification with comments
+4. Log completion in activity log
+
+**Authority Grant Logic (for approved New requests):**
+- When all approvals granted and request type is "New"
+- Query credit authority records linked to the request
+- Create active authority records in production authority table for each credit authority
+- Repeat process for non-credit authorities
+- Set effective date to current date/time
+- Link authorities to the requested_for user
+
+### 7.4 Subflows
+
+#### Subflow 1: Create Approval Record
+
+**Purpose**: Standardized approval record creation with due date calculation
+
+**Inputs:**
+- Approver sys_id
+- Document sys_id (request)
+- Due date (business days)
+- Approval order (sequence number)
+
+**Outputs:**
+- Approval record sys_id
+- Success/failure flag
+
+**Logic:**
+1. Create sysapproval_approver record
+2. Set approver, document_id, source_table
+3. Calculate due date excluding weekends and holidays
+4. Set approval order for proper sequencing
+5. Return approval sys_id
+
+#### Subflow 2: Send Approval Notification
+
+**Purpose**: Send email with PDF attachment to approver
+
+**Inputs:**
+- Approval record sys_id
+- Email template name
+- Include PDF flag
+
+**Outputs:**
+- Email sent confirmation
+
+**Logic:**
+1. Get approval and request details
+2. Generate PDF if requested (using PDF generation API)
+3. Build email body from template
+4. Attach PDF to email
+5. Send email via ServiceNow email API
+6. Log notification in approval record
+
+#### Subflow 3: Calculate Due Date
+
+**Purpose**: Calculate due date excluding weekends and bank holidays
+
+**Inputs:**
+- Business days to add
+- Starting date (default: now)
+
+**Outputs:**
+- Due date (GlideDateTime)
+
+**Logic:**
+- Start with current date/time
+- Add days one at a time
+- For each day added, check if it's a weekday (Monday-Friday)
+- Check if the date is a bank holiday by querying holiday table
+- Only count days that are both weekdays and non-holidays
+- Continue until desired number of business days reached
+- Return calculated due date
+
+### 7.5 Approval Delegation
+
+**Scenario**: Approver is out of office or wants to delegate approval
+
+**Mechanism**: ServiceNow native approval delegation
+
+**Process:**
+1. Approver accesses approval record
+2. Uses "Reassign" UI action
+3. Selects delegate user
+4. Adds delegation reason/comments
+5. System creates new approval record for delegate
+6. Original approval marked as delegated
+7. Notification sent to delegate
+
+**Tracking:**
+- Original approver recorded in approval history
+- Delegation reason captured in comments
+- Audit trail maintained
+
+---
+
+## 8. Integration Specifications
+
+### 8.1 Job Code Integration
+
+**Source Table**: x_banun_rbac_job_code
+
+**Integration Type**: Direct table reference
+
+**Purpose**: Link signature authority requests to job codes for automatic business approver assignment and committee member identification
+
+**Data Mapping:**
+
+| Field in Job Code Table | Usage in Signature Authority |
+|------------------------|------------------------------|
+| sys_id | Referenced in signature_request.job_code |
+| job_code_name | Display in request forms |
+| business_line_approver | Auto-populated in signature_request.business_line_approver |
+| division_executive | Used for approval routing |
+| committee_member | Used for high-value approval routing |
+
+**Query Pattern:**
+- Query x_banun_rbac_job_code table using job code sys_id
+- Retrieve business_line_approver field for auto-population
+- Retrieve division_executive for approval routing
+- Retrieve committee_member for high-value approvals
+
+**Dependency**: Job code must be set on sys_user record before creating signature authority request
+
+### 8.2 User Management Integration
+
+**Source Table**: sys_user
+
+**Integration Type**: Native ServiceNow user table references
+
+**Purpose**: Link requests to users for requested_for, approvers, delegates, and organizational hierarchy
+
+**Key Relationships:**
+
+1. **Requested For User**
+   - Reference: signature_request.requested_for → sys_user.sys_id
+   - Used to identify who is receiving authority
+
+2. **Manager Hierarchy**
+   - Reference: sys_user.manager → sys_user.sys_id
+   - Used for approval chain traversal
+
+3. **Approvers**
+   - Multiple reference fields to sys_user for various approver types
+   - Business line approver, division executive, committee member
+
+4. **Delegates**
+   - Reference: signature_request.delegate_user → sys_user.sys_id
+   - Used when authority is delegated to another user
+
+**Query Pattern for Manager Chain:**
+- Start with user sys_id
+- Query sys_user table to get user's manager field
+- Iterate up manager chain by querying each manager's manager
+- Store manager sys_ids in array
+- Implement safety limit (e.g., 10 iterations) to prevent infinite loops
+- Stop when no manager is found
+
+### 8.3 Approval System Integration
+
+**Target Table**: sysapproval_approver
+
+**Integration Type**: Native ServiceNow approval framework
+
+**Purpose**: Leverage ServiceNow's built-in approval tracking and workflow
+
+**Data Flow:**
+1. Signature request created or submitted
+2. Flow Designer creates approval records in sysapproval_approver
+3. Approvers receive notifications and access approval interface
+4. Approval state changes (approved/rejected) trigger Flow Designer continuation
+5. Approval history maintained automatically
+
+**Key Fields Used:**
+
+| Field | Purpose |
+|-------|---------|
+| document_id | Links to signature_request.sys_id |
+| source_table | Set to 'u_signature_request' |
+| approver | Reference to sys_user (who must approve) |
+| state | requested, approved, rejected, cancelled |
+| due_date | Calculated business date for approval deadline |
+| comments | Approver notes and justification |
+| approval_order | Sequence for serial approvals |
+
+**Query Pattern:**
+- Query sysapproval_approver table filtered by document_id (request sys_id)
+- Filter by source_table = 'u_signature_request'
+- Filter by state = 'requested' for active approvals
+- Order by approval_order to see sequence
+- Results show all pending approvals for the request
+
+### 8.4 Group Membership Integration
+
+**Source Tables**: sys_user_grmember, sys_user_group
+
+**Integration Type**: Native ServiceNow group management
+
+**Purpose**: Identify CRMC liaisons, ORMC liaisons, committee members, and delegate authority holders
+
+**Key Groups:**
+
+1. **CRMC Liaison Group**
+   - Group name: signature_authority_crmc_liaisons
+   - Used to identify eligible CRMC approvers
+
+2. **ORMC Liaison Group**
+   - Group name: signature_authority_ormc_liaisons
+   - Used to identify eligible ORMC approvers
+
+3. **Committee Group**
+   - Group name: signature_authority_committee
+   - Used for high-value approval notifications
+
+4. **Delegate Authority Group**
+   - Group name: signature_authority_delegates
+   - Users with special approval authority to short-circuit chains
+
+**Query Pattern:**
+
+Get Group Members:
+- Query sys_user_group table to find group by name
+- Get group sys_id
+- Query sys_user_grmember table filtered by group sys_id
+- Collect user sys_ids from user field
+- Return array of member sys_ids
+
+Check User Group Membership:
+- Query sys_user_grmember table
+- Filter by user sys_id and group name (through group reference)
+- Return true if any records found, false otherwise
+
+### 8.5 External System Integration (Future Considerations)
+
+**Potential Future Integrations:**
+
+1. **Core Banking System**
+   - Purpose: Sync approved authorities to transaction processing systems
+   - Method: REST API or scheduled export
+   - Frequency: Real-time or nightly batch
+
+2. **HR System**
+   - Purpose: Sync job codes, organizational hierarchy, employee status
+   - Method: Scheduled import or event-driven updates
+   - Frequency: Daily or on HR events
+
+3. **Risk Management System**
+   - Purpose: Export authority data for risk reporting and compliance
+   - Method: Report generation and file transfer
+   - Frequency: Monthly or on-demand
+
+4. **Audit System**
+   - Purpose: Provide audit trail of all authority changes
+   - Method: Audit log export or API integration
+   - Frequency: Real-time or daily
+
+**Integration Architecture Pattern:**
+```
+ServiceNow Signature Authority
+         ↓
+  Integration Hub (MID Server)
+         ↓
+  External System API/File Share
+```
+
+---
+
+## 9. Email Notifications
+
+### 9.1 Notification Strategy
+
+**Design Principle**: Use PDF attachments instead of complex HTML tables for mobile-friendly viewing and professional appearance.
+
+**Key Benefits:**
+- Professional banking industry appearance
+- Better mobile viewing experience
+- Point-in-time snapshot for audit purposes
+- Consistent formatting across email clients
+- Preserves data even if record is later modified
+
+### 9.2 PDF Generation
+
+**ServiceNow PDF API:**
+- Use ServiceNow's native PDF generation capabilities
+- Landscape orientation for wide comparison tables
+- Include bank branding and logos
+- Consistent formatting across all PDF types
+
+**PDF Contents:**
+- Request summary information
+- Complete authority details (credit and non-credit)
+- Before/after comparison for change requests
+- Approval history
+- Justification and comments
+- Generation timestamp for audit
+
+### 9.3 Notification Types
+
+#### 9.3.1 Approval Request Notification
+
+**Trigger**: New approval record created
+**Recipients**: Current approver
+**Subject**: Action Required: Signature Authority Request [request_number] - [requested_for_name]
+**PDF Attachment**: Full request details with authority comparison table
+
+#### 9.3.2 Change Request Approval Notification
+
+**Trigger**: Change request approval created
+**Recipients**: Current approver
+**Subject**: Action Required: Signature Authority CHANGE Request [request_number]
+**PDF Attachment**: Before/after comparison showing current vs requested amounts
+
+#### 9.3.3 CRMC Liaison Notification
+
+**Trigger**: CRMC approval record created
+**Recipients**: CRMC liaison approver
+**Subject**: CRMC Review Required: Credit Authority Request [request_number]
+**PDF Attachment**: Focus on credit authorities with approval history
+
+#### 9.3.4 ORMC Liaison Notification
+
+**Trigger**: ORMC approval record created (selective)
+**Recipients**: ORMC liaison approver
+**Subject**: ORMC Review Required: Non-Credit Authority Request [request_number]
+**PDF Attachment**: Focus on qualifying non-credit authorities
+
+#### 9.3.5 Approval Granted Notification
+
+**Trigger**: Approval record state changes to "approved"
+**Recipients**: Request creator, requested_for user
+**Subject**: Approved: Signature Authority Request [request_number]
+**Content**: Confirmation with next steps based on remaining approvals
+
+#### 9.3.6 Request Rejected Notification
+
+**Trigger**: Approval record state changes to "rejected"
+**Recipients**: Request creator, requested_for user
+**Subject**: Rejected: Signature Authority Request [request_number]
+**Content**: Rejection reason and next steps
+
+#### 9.3.7 Final Approval Notification
+
+**Trigger**: All approvals granted, request state = "Approved"
+**Recipients**: Creator, requested_for user, all approvers (FYI)
+**Subject**: FINAL APPROVAL: Signature Authority Request [request_number]
+**Content**: Summary of granted authorities and effective date
+
+#### 9.3.8 Overdue Approval Reminder
+
+**Trigger**: Scheduled job runs daily (business days only)
+**Recipients**: Approvers with approvals past due date
+**Subject**: REMINDER: Overdue Approval - Signature Authority Request [request_number]
+**Content**: Reminder with days overdue and direct link to approval
+
+### 9.4 Email Templates
+
+**Template Naming Convention:**
+- signature_authority_approval_request
+- signature_authority_change_request
+- signature_authority_crmc_notification
+- signature_authority_ormc_notification
+- signature_authority_approved
+- signature_authority_rejected
+- signature_authority_final_approval
+- signature_authority_reminder
+
+**Template Variables:**
+- ${request_number}
+- ${requested_for_name}
+- ${request_type}
+- ${job_code_name}
+- ${approver_name}
+- ${total_credit_amount}
+- ${total_non_credit_amount}
+- ${due_date}
+- ${approval_date}
+- ${approver_comments}
+
+---
+
+## 10. System Properties & Configuration
+
+### 10.1 Core System Properties
+
+**Property Naming Convention**: `signature_authority.[property_name]`
+
+#### 10.1.1 Group Configuration
+
+| Property Name | Type | Default Value | Description |
+|--------------|------|---------------|-------------|
+| signature_authority.crmc_group | String | signature_authority_crmc_liaisons | CRMC liaison group name |
+| signature_authority.ormc_group | String | signature_authority_ormc_liaisons | ORMC liaison group name |
+| signature_authority.committee_group | String | signature_authority_committee | Committee members group |
+| signature_authority.delegate_group | String | signature_authority_delegates | Delegate authority group |
+
+#### 10.1.2 Approval Thresholds
+
+| Property Name | Type | Default Value | Description |
+|--------------|------|---------------|-------------|
+| signature_authority.committee_threshold | Integer | 10000000 | Amount requiring committee approval ($10M) |
+| signature_authority.ceo_threshold | Integer | 50000000 | Amount requiring CEO approval ($50M) |
+| signature_authority.ormc_threshold | Integer | 1000000 | Non-credit amount triggering ORMC review ($1M) |
+
+#### 10.1.3 Workflow Configuration
+
+| Property Name | Type | Default Value | Description |
+|--------------|------|---------------|-------------|
+| signature_authority.approval_due_days | Integer | 3 | Business days for approval due date |
+| signature_authority.reminder_frequency | Integer | 1 | Days between reminder notifications |
+| signature_authority.auto_cancel_days | Integer | 30 | Days before auto-cancelling inactive requests |
+
+#### 10.1.4 PDF Generation
+
+| Property Name | Type | Default Value | Description |
+|--------------|------|---------------|-------------|
+| signature_authority.pdf_orientation | String | landscape | PDF orientation (landscape/portrait) |
+| signature_authority.include_logo | Boolean | true | Include bank logo in PDFs |
+| signature_authority.pdf_font_size | Integer | 10 | Base font size for PDF content |
+
+#### 10.1.5 Notification Configuration
+
+| Property Name | Type | Default Value | Description |
+|--------------|------|---------------|-------------|
+| signature_authority.enable_reminders | Boolean | true | Enable overdue reminder emails |
+| signature_authority.reminder_recipients | String | approver | Who receives reminders (approver/all) |
+| signature_authority.notification_from | String | noreply@bankunited.com | From address for notifications |
+
+### 10.2 Choice Lists
+
+#### 10.2.1 Request Type
+
+- New
+- Change
+- Remove
+
+#### 10.2.2 Request State
+
+- Draft
+- Submitted
+- In Approval
+- Approved
+- Rejected
+- Cancelled
+
+#### 10.2.3 Credit Authority Types
+
+(Populated based on business requirements)
+- Commercial Loan
+- Real Estate Loan
+- Line of Credit
+- Letter of Credit
+- etc.
+
+#### 10.2.4 Non-Credit Authority Types
+
+(Populated based on business requirements)
+- Operating Expenses
+- Vendor Payments
+- Capital Expenditures
+- Professional Services
+- etc.
+
+### 10.3 Configuration Tables
+
+#### 10.3.1 Bank Holidays Table
+
+**Purpose**: Track bank holidays for due date calculation
+
+**Fields:**
+- holiday_date (Date)
+- holiday_name (String)
+- is_active (Boolean)
+
+#### 10.3.2 High-Risk Authority Types
+
+**Purpose**: Define authority types requiring ORMC approval
+
+**Fields:**
+- authority_type (String)
+- requires_ormc (Boolean)
+- threshold_amount (Integer)
+- description (String)
+
+---
+
+## 11. Maintenance & Operations
+
+### 11.1 Scheduled Jobs
+
+#### 11.1.1 Overdue Approval Reminders
+
+**Job Name**: Signature Authority - Send Overdue Reminders
+
+**Schedule**: Daily at 9:00 AM (business days only)
+
+**Purpose**: Send reminder emails to approvers with overdue approvals
+
+**Logic:**
+1. Check if current day is a business day (not weekend or holiday)
+2. Query sysapproval_approver records where:
+   - source_table = 'u_signature_request'
+   - state = 'requested'
+   - due_date < current date
+3. For each overdue approval:
+   - Calculate days overdue
+   - Send reminder email to approver
+   - Log reminder sent in approval record
+4. Limit to one reminder per day per approval
+
+**Business Day Check:**
+- Skip weekends (Saturday, Sunday)
+- Skip bank holidays from holiday table
+- Only send reminders on business days
+
+#### 11.1.2 Auto-Cancel Inactive Requests
+
+**Job Name**: Signature Authority - Auto-Cancel Inactive Requests
+
+**Schedule**: Weekly on Sunday at 11:00 PM
+
+**Purpose**: Automatically cancel draft requests that haven't been submitted
+
+**Logic:**
+1. Query u_signature_request records where:
+   - state = 'draft'
+   - sys_created_on > 30 days ago
+2. For each inactive draft:
+   - Update state to 'Cancelled'
+   - Add system comment explaining auto-cancellation
+   - Send notification to creator
+3. Log cancellations for audit
+
+#### 11.1.3 Authority Expiration Check (Future)
+
+**Job Name**: Signature Authority - Check Authority Expirations
+
+**Schedule**: Daily at 1:00 AM
+
+**Purpose**: Identify and notify about expiring authorities
+
+**Logic:**
+1. Query active authority records with expiration dates
+2. Identify authorities expiring within 30 days
+3. Send notification to authority holder and manager
+4. Create follow-up task for renewal if needed
+
+### 11.2 Data Maintenance
+
+#### 11.2.1 Archive Old Requests
+
+**Frequency**: Quarterly
+
+**Process:**
+- Identify completed requests older than 2 years (rejected/cancelled)
+- Identify completed requests older than 7 years (approved)
+- Move to archive table or export to external storage
+- Maintain audit trail references
+- Document archived record count
+
+#### 11.2.2 Clean Up Orphaned Records
+
+**Frequency**: Monthly
+
+**Process:**
+- Identify child authority records without parent requests
+- Identify approval records for deleted requests
+- Clean up orphaned records after verification
+- Log cleanup actions
+
+### 11.3 Monitoring & Alerts
+
+#### 11.3.1 Application Health Monitoring
+
+**Metrics to Monitor:**
+- Average approval time by stage
+- Approval rejection rate
+- Overdue approval count
+- Failed notification count
+- System errors in logs
+
+**Alert Conditions:**
+- More than 10 overdue approvals
+- Notification failure rate > 5%
+- Average approval time exceeds 5 business days
+- System errors in signature authority logs
+
+#### 11.3.2 Performance Monitoring
+
+**Key Performance Indicators:**
+- Request submission to final approval time
+- Number of requests by type per month
+- Approval volume by approver
+- Peak usage times
+
+**Reports:**
+- Monthly request volume report
+- Approval performance by business line
+- CRMC/ORMC approval statistics
+- Authority grant trend analysis
+
+### 11.4 Backup & Recovery
+
+**Database Backup:**
+- Included in standard ServiceNow instance backup
+- Daily automated backups
+- Point-in-time recovery available
+
+**Configuration Backup:**
+- Export update sets for all customizations
+- Store in version control (Git)
+- Document all system property changes
+- Maintain deployment history
+
+**Disaster Recovery:**
+- Follow standard ServiceNow DR procedures
+- RTO (Recovery Time Objective): 4 hours
+- RPO (Recovery Point Objective): 24 hours
+- Regular DR testing quarterly
+
+### 11.5 Troubleshooting Guide
+
+#### 11.5.1 Common Issues
+
+**Issue: Approval not created**
+- Check Flow Designer execution history
+- Verify approver user is active
+- Check for business rule conflicts
+- Review system logs for errors
+
+**Issue: Email notification not sent**
+- Verify email notification is active
+- Check email log for delivery status
+- Verify recipient email address
+- Check PDF generation success
+
+**Issue: PDF not attached to email**
+- Review PDF generation API logs
+- Check attachment size limits
+- Verify user permissions for PDF generation
+- Test PDF generation manually
+
+**Issue: User cannot see request**
+- Verify user roles
+- Check ACL configuration
+- Confirm user is in approval chain
+- Review surgical access logic
+
+#### 11.5.2 Logging & Debugging
+
+**Custom Logging Prefix**: "SIGNATURE TESTING" or "SIGNATURE AUTHORITY"
+
+**Log Locations:**
+- System Logs: syslog table
+- Script Log Statements: gs.info(), gs.warn(), gs.error()
+- Flow Designer execution logs
+- Email logs in sys_email table
+
+**Debug Mode:**
+- Enable debug logging for specific users
+- Log approval routing decisions
+- Log PDF generation steps
+- Log change detection logic
+
+**Privacy Note**: Do not log user names, only sys_ids
+
+---
+
+## 12. Data Dictionary
+
+### 12.1 Signature Request Table Fields
+
+| Field Label | Field Name | Type | Max Length | Choices | Read Only | Mandatory |
+|------------|-----------|------|------------|---------|-----------|-----------|
+| Number | number | String | 40 | - | Yes | No |
+| Requested For | requested_for | Reference (sys_user) | 32 | - | No | Yes |
+| Request Type | request_type | Choice | 40 | New, Change, Remove | No | Yes |
+| State | state | Choice | 40 | Draft, Submitted, In Approval, Approved, Rejected, Cancelled | No | Yes |
+| Job Code | job_code | Reference (x_banun_rbac_job_code) | 32 | - | Yes | Yes |
+| Business Line Approver | business_line_approver | Reference (sys_user) | 32 | - | No | No |
+| Division Executive | division_executive | Reference (sys_user) | 32 | - | No | No |
+| Justification | justification | String (Long) | 4000 | - | No | Yes |
+| Has Credit Authority | has_credit_authority | Boolean | - | - | Yes | No |
+| Has Non-Credit Authority | has_non_credit_authority | Boolean | - | - | Yes | No |
+| Delegate User | delegate_user | Reference (sys_user) | 32 | - | No | No |
+| Delegate Authority Amount | delegate_authority_amount | Integer | - | - | No | No |
+| Is Temporary Delegate | is_temporary_delegate | Boolean | - | - | No | No |
+| Original Authority Holder | original_authority_holder | Reference (sys_user) | 32 | - | No | No |
+| Submitted Date | submitted_date | Date/Time | - | - | Yes | No |
+| Approved Date | approved_date | Date/Time | - | - | Yes | No |
+| Comments | comments | Journal | - | - | No | No |
+
+### 12.2 Credit Authority Table Fields
+
+| Field Label | Field Name | Type | Max Length | Mandatory |
+|------------|-----------|------|------------|-----------|
+| Signature Request | signature_request | Reference (u_signature_request) | 32 | Yes |
+| Authority Type | authority_type | String | 100 | Yes |
+| Requested Amount | requested_amount | Integer | - | Yes |
+| Current Amount | current_amount | Integer | - | No |
+| Original Amount | original_amount | Integer | - | No |
+| Approval Required | approval_required | Boolean | - | Yes |
+| CRMC Approval Required | crmc_approval_required | Boolean | - | Yes |
+| Committee Member | committee_member | Reference (sys_user) | 32 | No |
+
+### 12.3 Non-Credit Authority Table Fields
+
+| Field Label | Field Name | Type | Max Length | Mandatory |
+|------------|-----------|------|------------|-----------|
+| Signature Request | signature_request | Reference (u_signature_request) | 32 | Yes |
+| Authority Type | authority_type | String | 100 | Yes |
+| Requested Amount | requested_amount | Integer | - | Yes |
+| Current Amount | current_amount | Integer | - | No |
+| Original Amount | original_amount | Integer | - | No |
+| Approval Required | approval_required | Boolean | - | Yes |
+| ORMC Approval Required | ormc_approval_required | Boolean | - | Yes |
+| Committee Member | committee_member | Reference (sys_user) | 32 | No |
+
+---
+
+## 13. Testing Strategy
+
+### 13.1 Unit Testing
+
+**Test Coverage:**
+- Script Include methods
+- Business rule logic
+- Calculation functions
+- Change detection logic
+- ACL conditions
+
+**Test Scenarios:**
+- Create new authority request
+- Modify existing authority
+- Remove authority
+- Calculate total amounts
+- Detect changes in amounts
+- Validate user access
+
+### 13.2 Integration Testing
+
+**Test Scenarios:**
+- Job code lookup and auto-population
+- Manager chain traversal
+- Approval record creation
+- Email notification delivery
+- PDF generation and attachment
+- Group membership queries
+
+### 13.3 Workflow Testing
+
+**Test Scenarios:**
+- Complete approval flow for new request
+- Complete approval flow for change request
+- Complete approval flow for remove request
+- Approval rejection at each stage
+- Management chain delegation
+- CRMC liaison approval
+- ORMC liaison approval (selective)
+- Committee member approval
+- Final approval and authority grant
+
+### 13.4 User Acceptance Testing (UAT)
+
+**Test Groups:**
+- End users (request creation)
+- Business line approvers
+- CRMC liaisons
+- ORMC liaisons
+- Division executives
+- Administrators
+
+**Test Scenarios:**
+- Create request via Service Portal
+- Search and select user
+- Add multiple authorities
+- Submit request
+- Receive and act on approval
+- View approval history
+- Generate and download PDF
+- Delegate approval
+- Cancel request
+
+### 13.5 Performance Testing
+
+**Test Scenarios:**
+- Load testing with concurrent users
+- Response time for form loading
+- PDF generation time
+- Email delivery time
+- Database query performance
+- Approval routing speed
+
+**Performance Targets:**
+- Form load: < 2 seconds
+- PDF generation: < 5 seconds
+- Approval creation: < 3 seconds
+- Email delivery: < 1 minute
+
+### 13.6 Security Testing
+
+**Test Scenarios:**
+- Role-based access control
+- ACL enforcement
+- Field-level security
+- Surgical approver access
+- Admin override capabilities
+- Data privacy compliance
+
+---
+
+## 14. Deployment & Release
+
+### 14.1 Deployment Strategy
+
+**Environment Progression:**
+1. Development (DEV)
+2. Test (TEST)
+3. User Acceptance Testing (UAT)
+4. Production (PROD)
+
+**Deployment Method:**
+- Update Sets for all customizations
+- Version control with Git
+- Peer review before promotion
+- Testing in each environment before advancing
+
+### 14.2 Pre-Deployment Checklist
+
+**Configuration:**
+- [ ] All system properties configured
+- [ ] Group memberships set up
+- [ ] Choice lists populated
+- [ ] Email templates created and tested
+- [ ] PDF templates configured
+- [ ] Job code data validated
+- [ ] User roles assigned
+
+**Technical:**
+- [ ] Update set created and tested
+- [ ] All Script Includes syntax validated
+- [ ] Business Rules active and tested
+- [ ] Flow Designer flows tested
+- [ ] ACLs configured correctly
+- [ ] UI Policies and Actions tested
+- [ ] Service Portal widgets functional
+
+**Documentation:**
+- [ ] User training materials prepared
+- [ ] Admin documentation complete
+- [ ] System design specification finalized
+- [ ] Troubleshooting guide ready
+- [ ] Release notes prepared
+
+### 14.3 Deployment Steps
+
+1. **Backup Current State**
+   - Export current update set
+   - Document current configuration
+   - Take screenshots of key components
+
+2. **Deploy to Target Environment**
+   - Import update set
+   - Preview and resolve conflicts
+   - Commit update set
+   - Verify deployment success
+
+3. **Post-Deployment Validation**
+   - Test critical user paths
+   - Verify email notifications
+   - Test PDF generation
+   - Validate approval workflows
+   - Check ACL functionality
+
+4. **Monitor Initial Usage**
+   - Watch system logs for errors
+   - Monitor email delivery
+   - Track approval creation
+   - Respond to user issues quickly
+
+### 14.4 Rollback Plan
+
+**Rollback Triggers:**
+- Critical system errors
+- Data integrity issues
+- Security vulnerabilities
+- Major functional failures
+
+**Rollback Process:**
+1. Stop current update set commit
+2. Restore previous update set
+3. Verify system functionality
+4. Communicate with stakeholders
+5. Investigate root cause
+6. Prepare corrected deployment
+
+### 14.5 Training & Communication
+
+**User Training:**
+- Service Portal navigation
+- Request creation process
+- Authority types and amounts
+- Submission and tracking
+- Email notifications
+
+**Approver Training:**
+- Approval responsibilities
+- Email notification handling
+- PDF review process
+- Approval and rejection process
+- Delegation procedures
+
+**Admin Training:**
+- System configuration
+- User management
+- Troubleshooting
+- Monitoring and alerts
+- Maintenance procedures
+
+### 14.6 Go-Live Support
+
+**Support Schedule:**
+- Extended hours for first week
+- Dedicated support team
+- Quick response to issues
+- Daily status meetings
+- Issue tracking and resolution
+
+**Communication Channels:**
+- Email support alias
+- Dedicated Slack/Teams channel
+- Phone hotline
+- Service Portal knowledge base
+
+---
+
+## 15. Appendices
+
+### 15.1 Glossary
+
+**CRMC**: Credit Risk Management Committee - Oversees all credit-related authority requests
+
+**ORMC**: Operational Risk Management Committee - Oversees selective non-credit authority requests
+
+**Business Line Approver**: First-level approver responsible for verifying business justification
+
+**Division Executive**: Senior manager at division level who approves requests within their organizational unit
+
+**Committee Member**: Executive-level approver for high-value requests
+
+**Delegate Authority**: Authority that has been delegated from one user to another, either temporarily or permanently
+
+**Change Request**: Request to modify existing authority limits
+
+**Remove Request**: Request to completely revoke existing authorities
+
+**Surgical Access**: Specific, limited access granted to approvers to view only requests they need to approve
+
+### 15.2 Acronyms
+
+- **ACL**: Access Control List
+- **API**: Application Programming Interface
+- **CEO**: Chief Executive Officer
+- **CRMC**: Credit Risk Management Committee
+- **DR**: Disaster Recovery
+- **GR**: GlideRecord
+- **KPI**: Key Performance Indicator
+- **ORMC**: Operational Risk Management Committee
+- **PDF**: Portable Document Format
+- **RBAC**: Role-Based Access Control
+- **RPO**: Recovery Point Objective
+- **RTO**: Recovery Time Objective
+- **SDS**: System Design Specification
+- **SP**: Service Portal
+- **UAT**: User Acceptance Testing
+- **UI**: User Interface
+
+### 15.3 References
+
+**ServiceNow Documentation:**
+- Flow Designer Best Practices
+- Service Portal Development Guide
+- Access Control List Configuration
+- Email Notification Setup
+- PDF Generation APIs
+
+**Internal Documentation:**
+- BankUnited Job Code Structure
+- Organizational Hierarchy Documentation
+- Committee Charter Documents
+- Authority Limit Policies
+
+### 15.4 Change Log
+
+| Date | Version | Author | Changes |
+|------|---------|--------|---------|
+| December 2025 | 1.0 | Development Team | Initial SDS Release |
+
+---
+
+**Document End**
