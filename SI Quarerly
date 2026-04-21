@@ -1,3 +1,48 @@
+// SIGNATURE TESTING - Management Report PDF test
+var START_DATE       = '2025-01-01';
+var END_DATE         = '2026-04-21';
+var ATTACH_TO_SYS_ID = 'PASTE_ANY_SIGNATURE_REQUEST_SYS_ID_HERE';
+
+var helper = new x_banun_bunow_si_0.SignatureHelper();
+var html = helper.buildManagementReportHTML(START_DATE, END_DATE);
+
+if (!html) {
+    gs.info('SIGNATURE TESTING: No HTML generated - check date range has closed_complete child records');
+} else {
+    gs.info('SIGNATURE TESTING: HTML generated, length = ' + html.length);
+
+    var hfInfo = {
+        'PageSize': 'A4',
+        'Orientation': 'LANDSCAPE',
+        'GeneratePageNumber': 'true',
+        'TopOrBottomMargin': '20',
+        'LeftOrRightMargin': '20'
+    };
+
+    var pdfFileName = 'Authority_Limits_Management_Report_' + START_DATE + '_to_' + END_DATE + '.pdf';
+    var pdfAPI = new sn_pdfgeneratorutils.PDFGenerationAPI();
+
+    var result = pdfAPI.convertToPDFWithHeaderFooter(
+        html,
+        'x_banun_bunow_si_0_signature_request',
+        ATTACH_TO_SYS_ID,
+        pdfFileName,
+        hfInfo
+    );
+
+    gs.info('SIGNATURE TESTING: PDF result = ' + JSON.stringify(result));
+}
+
+
+
+
+
+
+
+
+
+
+
 buildManagementReportHTML: function(startDate, endDate) {
     var self = this;
 
@@ -97,8 +142,9 @@ buildManagementReportHTML: function(startDate, endDate) {
         return null;
     }
 
-    // ── Step 2: Pull parent data & resolve LOB ────────────────────────────
-    var lobMap = {};
+    // ── Step 2: Pull parent data, resolve LOB, deduplicate by job code ───
+    // First pass: collect all entries per job code, track latest closed_at
+    var jobCodeMap = {}; // jobCodeSysId -> { entry, latestClosedAt, lobName, jobTitle, jobCode }
 
     for (var pid in parentMap) {
         var entry = parentMap[pid];
@@ -119,18 +165,48 @@ buildManagementReportHTML: function(startDate, endDate) {
         var jobTitle = jcGr.getValue('job_description') || '';
         var jobCode  = jcGr.getDisplayValue() || '';
 
-        if (!lobMap[lobName]) {
-            lobMap[lobName] = { lob_name: lobName, changed: [], context: [] };
+        // Determine the latest closed_at across both children for this parent
+        var creditClosedAt    = entry.credit     ? entry.credit.closed_at     : '';
+        var nonCreditClosedAt = entry.non_credit ? entry.non_credit.closed_at : '';
+        var thisClosedAt      = creditClosedAt > nonCreditClosedAt ? creditClosedAt : nonCreditClosedAt;
+
+        // Keep only the most recent request per job code
+        if (jobCodeMap[jobCodeSysId] && thisClosedAt <= jobCodeMap[jobCodeSysId].latestClosedAt) {
+            continue;
         }
 
-        lobMap[lobName].changed.push({
+        jobCodeMap[jobCodeSysId] = {
+            latestClosedAt:  thisClosedAt,
             job_title:       jobTitle,
             job_code:        jobCode,
             job_code_sys_id: jobCodeSysId,
             request_type:    requestType,
             number:          number,
+            lobName:         lobName,
             credit:          entry.credit,
             non_credit:      entry.non_credit
+        };
+    }
+
+    // Second pass: build lobMap from deduplicated job code entries
+    var lobMap = {};
+
+    for (var jcSysId in jobCodeMap) {
+        var resolved = jobCodeMap[jcSysId];
+        var lob = resolved.lobName;
+
+        if (!lobMap[lob]) {
+            lobMap[lob] = { lob_name: lob, changed: [], context: [] };
+        }
+
+        lobMap[lob].changed.push({
+            job_title:       resolved.job_title,
+            job_code:        resolved.job_code,
+            job_code_sys_id: resolved.job_code_sys_id,
+            request_type:    resolved.request_type,
+            number:          resolved.number,
+            credit:          resolved.credit,
+            non_credit:      resolved.non_credit
         });
     }
 
