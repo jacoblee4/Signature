@@ -443,7 +443,7 @@ buildManagementReportHTML: function(startDate, endDate) {
         '.th-col{text-align:center;font-size:7px;font-weight:bold;color:#fff;padding:4px 2px;vertical-align:middle;line-height:1.2;}',
         '.th-nc-col{background:#28a745 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
         '.th-cr-col{background:#dc3545 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
-        'td.jt{text-align:left;font-size:8px;background:#f8f9fa !important;color:#2c3e50;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
+        'td.jt{text-align:left;font-size:7.5px;background:#f8f9fa !important;color:#2c3e50;font-weight:600;word-wrap:break-word;overflow-wrap:break-word;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
         'td.jc{text-align:center;font-size:8px;background:#f8f9fa !important;color:#2c3e50;font-weight:600;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
         'td.amt{text-align:right;font-size:8px;color:#2c3e50;}',
         'td.nc{background:#e8f5e9 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
