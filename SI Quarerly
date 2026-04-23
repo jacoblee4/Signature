@@ -44,452 +44,473 @@ if (!html) {
 
 
 buildManagementReportHTML: function(startDate, endDate) {
-    var self = this;
+        var self = this;
 
-    function intVal(gr, field) {
-        return parseInt(gr.getValue(field) || 0, 10);
-    }
+        function intVal(gr, field) {
+            return parseInt(gr.getValue(field) || 0, 10);
+        }
 
-    function fmt(val) {
-        if (!val || val === 0) return '-';
-        var s = val.toString();
-        var parts = [];
-        while (s.length > 3) { parts.unshift(s.slice(-3)); s = s.slice(0, -3); }
-        parts.unshift(s);
-        return '$' + parts.join(',');
-    }
+        function fmt(val) {
+            if (!val || val === 0) return '-';
+            var s = val.toString();
+            var parts = [];
+            while (s.length > 3) {
+                parts.unshift(s.slice(-3));
+                s = s.slice(0, -3);
+            }
+            parts.unshift(s);
+            return '$' + parts.join(',');
+        }
 
-    var ALL_FIELDS = [
-        'disbursement_ach', 'wire_internal', 'wire_external',
-        'checks_internal', 'checks_external',
-        'check_cashing_on_us', 'check_cashing_not_on_us',
-        'remote_deposit', 'treasury_wire', 'fx_wire',
-        'overdraft_internal', 'overdraft_external',
-        'unavailable_internal', 'unavailable_external'
-    ];
+        var ALL_FIELDS = [
+            'disbursement_ach', 'wire_internal', 'wire_external',
+            'checks_internal', 'checks_external',
+            'check_cashing_on_us', 'check_cashing_not_on_us',
+            'remote_deposit', 'treasury_wire', 'fx_wire',
+            'overdraft_internal', 'overdraft_external',
+            'unavailable_internal', 'unavailable_external'
+        ];
 
-    // ── Step 1: Query both child tables ──────────────────────────────────
-    var start = new GlideDateTime();
-    start.setDisplayValue(startDate + ' 00:00:00');
-    var end = new GlideDateTime();
-    end.setDisplayValue(endDate + ' 23:59:59');
+        // ── Step 1: Query both child tables ──────────────────────────────────
+        var start = new GlideDateTime();
+        start.setDisplayValue(startDate + ' 00:00:00');
+        var end = new GlideDateTime();
+        end.setDisplayValue(endDate + ' 23:59:59');
 
-    var parentMap = {};
+        var parentMap = {};
 
-    function processChildTable(tableName, isCredit) {
-        var gr = new GlideRecord(tableName);
-        gr.addQuery('state', '3');
-        gr.addQuery('closed_at', '>=', start);
-        gr.addQuery('closed_at', '<=', end);
-        gr.query();
+        function processChildTable(tableName, isCredit) {
+            var gr = new GlideRecord(tableName);
+            gr.addQuery('state', '3');
+            gr.addQuery('closed_at', '>=', start);
+            gr.addQuery('closed_at', '<=', end);
+            gr.query();
 
-        while (gr.next()) {
-            var pid = gr.getValue('parent');
-            if (!pid) continue;
+            while (gr.next()) {
+                var pid = gr.getValue('parent');
+                if (!pid) continue;
 
-            if (!parentMap[pid]) {
-                parentMap[pid] = { parent_sys_id: pid, credit: null, non_credit: null };
+                if (!parentMap[pid]) {
+                    parentMap[pid] = {
+                        parent_sys_id: pid,
+                        credit: null,
+                        non_credit: null
+                    };
+                }
+
+                var closedAt = gr.getValue('closed_at') || '';
+                var key = isCredit ? 'credit' : 'non_credit';
+
+                if (parentMap[pid][key] && closedAt <= parentMap[pid][key].closed_at) continue;
+
+                var row = {
+                    closed_at: closedAt
+                };
+
+                if (isCredit) {
+                    row.overdraft_internal = intVal(gr, 'overdraft_internal_accounts');
+                    row.overdraft_external = intVal(gr, 'overdraft_external_accounts');
+                    row.unavailable_internal = intVal(gr, 'unavailable_funds_internal_accounts');
+                    row.unavailable_external = intVal(gr, 'unavailable_funds_external_accounts');
+                    row.orig_overdraft_internal = intVal(gr, 'original_overdraft_internal_accounts');
+                    row.orig_overdraft_external = intVal(gr, 'original_overdraft_external_accounts');
+                    row.orig_unavailable_internal = intVal(gr, 'original_unavailable_funds_internal_accounts');
+                    row.orig_unavailable_external = intVal(gr, 'original_unavailable_funds_external_accounts');
+                } else {
+                    row.disbursement_ach = intVal(gr, 'disbursement_ach');
+                    row.wire_internal = intVal(gr, 'disbursement_wire_transfer_internal');
+                    row.wire_external = intVal(gr, 'disbursement_wire_transfer_external');
+                    row.checks_internal = intVal(gr, 'disbursement_official_checks_internal');
+                    row.checks_external = intVal(gr, 'disbursement_official_checks_external');
+                    row.check_cashing_on_us = intVal(gr, 'check_cashing_on_us');
+                    row.check_cashing_not_on_us = intVal(gr, 'check_cashing_not_on_us');
+                    row.remote_deposit = intVal(gr, 'remote_deposit');
+                    row.treasury_wire = intVal(gr, 'treasury_solutions_company_wire_limits');
+                    row.fx_wire = intVal(gr, 'fx_wire_limits');
+                    row.orig_disbursement_ach = intVal(gr, 'original_disbursement_ach');
+                    row.orig_wire_internal = intVal(gr, 'original_disbursement_wire_transfer_internal');
+                    row.orig_wire_external = intVal(gr, 'original_disbursement_wire_transfer_external');
+                    row.orig_checks_internal = intVal(gr, 'original_disbursement_official_checks_internal');
+                    row.orig_checks_external = intVal(gr, 'original_disbursement_official_checks_external');
+                    row.orig_check_cashing_on_us = intVal(gr, 'original_check_cashing_on_us');
+                    row.orig_check_cashing_not_on_us = intVal(gr, 'original_check_cashing_not_on_us');
+                    row.orig_remote_deposit = intVal(gr, 'original_remote_deposit');
+                    row.orig_treasury_wire = intVal(gr, 'original_treasury_solutions_company_wire_limits');
+                    row.orig_fx_wire = intVal(gr, 'original_fx_wire_limits');
+                }
+
+                parentMap[pid][key] = row;
+            }
+        }
+
+        processChildTable('x_banun_bunow_si_0_credit_authority_limits', true);
+        processChildTable('x_banun_bunow_si_0_non_credit_authority_limits', false);
+
+        if (!parentMap || Object.keys(parentMap).length === 0) {
+            gs.info('SIGNATURE REPORT: No closed_complete child records found in date range');
+            return null;
+        }
+
+        // ── Step 2: Pull parent data, resolve LOB, deduplicate by job code ───
+        // First pass: collect all entries per job code, track latest closed_at
+        var jobCodeMap = {}; // jobCodeSysId -> { entry, latestClosedAt, lobName, jobTitle, jobCode }
+
+        for (var pid in parentMap) {
+            var entry = parentMap[pid];
+
+            var parentGr = new GlideRecord('x_banun_bunow_si_0_signature_request');
+            if (!parentGr.get(pid)) continue;
+
+            var requestType = parentGr.getValue('request_type');
+            var jobCodeSysId = parentGr.getValue('job_code');
+            var number = parentGr.getValue('number') || '';
+
+            if (!jobCodeSysId) continue;
+
+            var jcGr = new GlideRecord('x_banun_rbac_job_code');
+            if (!jcGr.get(jobCodeSysId)) continue;
+
+            var lobName = jcGr.getValue('job_function_description') || 'No Line of Business';
+            var jobTitle = jcGr.getValue('job_description') || '';
+            var jobCode = jcGr.getDisplayValue() || '';
+
+            // Determine the latest closed_at across both children for this parent
+            var creditClosedAt = entry.credit ? entry.credit.closed_at : '';
+            var nonCreditClosedAt = entry.non_credit ? entry.non_credit.closed_at : '';
+            var thisClosedAt = creditClosedAt > nonCreditClosedAt ? creditClosedAt : nonCreditClosedAt;
+
+            // Keep only the most recent request per job code
+            if (jobCodeMap[jobCodeSysId] && thisClosedAt <= jobCodeMap[jobCodeSysId].latestClosedAt) {
+                continue;
             }
 
-            var closedAt = gr.getValue('closed_at') || '';
-            var key = isCredit ? 'credit' : 'non_credit';
+            jobCodeMap[jobCodeSysId] = {
+                latestClosedAt: thisClosedAt,
+                job_title: jobTitle,
+                job_code: jobCode,
+                job_code_sys_id: jobCodeSysId,
+                request_type: requestType,
+                number: number,
+                lobName: lobName,
+                credit: entry.credit,
+                non_credit: entry.non_credit
+            };
+        }
 
-            if (parentMap[pid][key] && closedAt <= parentMap[pid][key].closed_at) continue;
+        // Second pass: build lobMap from deduplicated job code entries
+        var lobMap = {};
 
-            var row = { closed_at: closedAt };
+        for (var jcSysId in jobCodeMap) {
+            var resolved = jobCodeMap[jcSysId];
+            var lob = resolved.lobName;
 
-            if (isCredit) {
-                row.overdraft_internal        = intVal(gr, 'overdraft_internal_accounts');
-                row.overdraft_external        = intVal(gr, 'overdraft_external_accounts');
-                row.unavailable_internal      = intVal(gr, 'unavailable_funds_internal_accounts');
-                row.unavailable_external      = intVal(gr, 'unavailable_funds_external_accounts');
-                row.orig_overdraft_internal   = intVal(gr, 'original_overdraft_internal_accounts');
-                row.orig_overdraft_external   = intVal(gr, 'original_overdraft_external_accounts');
-                row.orig_unavailable_internal = intVal(gr, 'original_unavailable_funds_internal_accounts');
-                row.orig_unavailable_external = intVal(gr, 'original_unavailable_funds_external_accounts');
-            } else {
-                row.disbursement_ach             = intVal(gr, 'disbursement_ach');
-                row.wire_internal                = intVal(gr, 'disbursement_wire_transfer_internal');
-                row.wire_external                = intVal(gr, 'disbursement_wire_transfer_external');
-                row.checks_internal              = intVal(gr, 'disbursement_official_checks_internal');
-                row.checks_external              = intVal(gr, 'disbursement_official_checks_external');
-                row.check_cashing_on_us          = intVal(gr, 'check_cashing_on_us');
-                row.check_cashing_not_on_us      = intVal(gr, 'check_cashing_not_on_us');
-                row.remote_deposit               = intVal(gr, 'remote_deposit');
-                row.treasury_wire                = intVal(gr, 'treasury_solutions_company_wire_limits');
-                row.fx_wire                      = intVal(gr, 'fx_wire_limits');
-                row.orig_disbursement_ach        = intVal(gr, 'original_disbursement_ach');
-                row.orig_wire_internal           = intVal(gr, 'original_disbursement_wire_transfer_internal');
-                row.orig_wire_external           = intVal(gr, 'original_disbursement_wire_transfer_external');
-                row.orig_checks_internal         = intVal(gr, 'original_disbursement_official_checks_internal');
-                row.orig_checks_external         = intVal(gr, 'original_disbursement_official_checks_external');
-                row.orig_check_cashing_on_us     = intVal(gr, 'original_check_cashing_on_us');
-                row.orig_check_cashing_not_on_us = intVal(gr, 'original_check_cashing_not_on_us');
-                row.orig_remote_deposit          = intVal(gr, 'original_remote_deposit');
-                row.orig_treasury_wire           = intVal(gr, 'original_treasury_solutions_company_wire_limits');
-                row.orig_fx_wire                 = intVal(gr, 'original_fx_wire_limits');
+            if (!lobMap[lob]) {
+                lobMap[lob] = {
+                    lob_name: lob,
+                    changed: [],
+                    context: []
+                };
             }
 
-            parentMap[pid][key] = row;
-        }
-    }
-
-    processChildTable('x_banun_bunow_si_0_credit_authority_limits', true);
-    processChildTable('x_banun_bunow_si_0_non_credit_authority_limits', false);
-
-    if (!parentMap || Object.keys(parentMap).length === 0) {
-        gs.info('SIGNATURE REPORT: No closed_complete child records found in date range');
-        return null;
-    }
-
-    // ── Step 2: Pull parent data, resolve LOB, deduplicate by job code ───
-    // First pass: collect all entries per job code, track latest closed_at
-    var jobCodeMap = {}; // jobCodeSysId -> { entry, latestClosedAt, lobName, jobTitle, jobCode }
-
-    for (var pid in parentMap) {
-        var entry = parentMap[pid];
-
-        var parentGr = new GlideRecord('x_banun_bunow_si_0_signature_request');
-        if (!parentGr.get(pid)) continue;
-
-        var requestType  = parentGr.getValue('request_type');
-        var jobCodeSysId = parentGr.getValue('job_code');
-        var number       = parentGr.getValue('number') || '';
-
-        if (!jobCodeSysId) continue;
-
-        var jcGr = new GlideRecord('x_banun_rbac_job_code');
-        if (!jcGr.get(jobCodeSysId)) continue;
-
-        var lobName  = jcGr.getValue('job_function_description') || 'No Line of Business';
-        var jobTitle = jcGr.getValue('job_description') || '';
-        var jobCode  = jcGr.getDisplayValue() || '';
-
-        // Determine the latest closed_at across both children for this parent
-        var creditClosedAt    = entry.credit     ? entry.credit.closed_at     : '';
-        var nonCreditClosedAt = entry.non_credit ? entry.non_credit.closed_at : '';
-        var thisClosedAt      = creditClosedAt > nonCreditClosedAt ? creditClosedAt : nonCreditClosedAt;
-
-        // Keep only the most recent request per job code
-        if (jobCodeMap[jobCodeSysId] && thisClosedAt <= jobCodeMap[jobCodeSysId].latestClosedAt) {
-            continue;
+            lobMap[lob].changed.push({
+                job_title: resolved.job_title,
+                job_code: resolved.job_code,
+                job_code_sys_id: resolved.job_code_sys_id,
+                request_type: resolved.request_type,
+                number: resolved.number,
+                credit: resolved.credit,
+                non_credit: resolved.non_credit
+            });
         }
 
-        jobCodeMap[jobCodeSysId] = {
-            latestClosedAt:  thisClosedAt,
-            job_title:       jobTitle,
-            job_code:        jobCode,
-            job_code_sys_id: jobCodeSysId,
-            request_type:    requestType,
-            number:          number,
-            lobName:         lobName,
-            credit:          entry.credit,
-            non_credit:      entry.non_credit
-        };
-    }
-
-    // Second pass: build lobMap from deduplicated job code entries
-    var lobMap = {};
-
-    for (var jcSysId in jobCodeMap) {
-        var resolved = jobCodeMap[jcSysId];
-        var lob = resolved.lobName;
-
-        if (!lobMap[lob]) {
-            lobMap[lob] = { lob_name: lob, changed: [], context: [] };
+        if (!lobMap || Object.keys(lobMap).length === 0) {
+            gs.info('SIGNATURE REPORT: Could not resolve any LOB data');
+            return null;
         }
 
-        lobMap[lob].changed.push({
-            job_title:       resolved.job_title,
-            job_code:        resolved.job_code,
-            job_code_sys_id: resolved.job_code_sys_id,
-            request_type:    resolved.request_type,
-            number:          resolved.number,
-            credit:          resolved.credit,
-            non_credit:      resolved.non_credit
-        });
-    }
+        // ── Step 3: For each LOB fetch ALL current context rows (no date filter) ──
+        for (var lobName in lobMap) {
+            var lob = lobMap[lobName];
 
-    if (!lobMap || Object.keys(lobMap).length === 0) {
-        gs.info('SIGNATURE REPORT: Could not resolve any LOB data');
-        return null;
-    }
+            // Build lookup of changed job code sys_ids to exclude from context
+            var changedSysIds = {};
+            for (var c = 0; c < lob.changed.length; c++) {
+                changedSysIds[lob.changed[c].job_code_sys_id] = true;
+            }
 
-    // ── Step 3: For each LOB fetch ALL current context rows (no date filter) ──
-    for (var lobName in lobMap) {
-        var lob = lobMap[lobName];
+            // Get every job code in this LOB
+            var jcSearch = new GlideRecord('x_banun_rbac_job_code');
+            jcSearch.addQuery('job_function_description', lobName);
+            jcSearch.query();
 
-        // Build lookup of changed job code sys_ids to exclude from context
-        var changedSysIds = {};
-        for (var c = 0; c < lob.changed.length; c++) {
-            changedSysIds[lob.changed[c].job_code_sys_id] = true;
-        }
+            while (jcSearch.next()) {
+                var jcSysId = jcSearch.getValue('sys_id');
+                if (changedSysIds[jcSysId]) continue;
 
-        // Get every job code in this LOB
-        var jcSearch = new GlideRecord('x_banun_rbac_job_code');
-        jcSearch.addQuery('job_function_description', lobName);
-        jcSearch.query();
+                // Pull their current authority limits - NO date filter
+                var limGr = new GlideRecord('x_banun_bunow_si_0_authority_limits');
+                limGr.addQuery('job_code', jcSysId);
+                limGr.query();
 
-        while (jcSearch.next()) {
-            var jcSysId = jcSearch.getValue('sys_id');
-            if (changedSysIds[jcSysId]) continue;
+                while (limGr.next()) {
+                    lob.context.push({
+                        job_title: jcSearch.getValue('job_description') || '',
+                        job_code: jcSearch.getDisplayValue() || '',
+                        disbursement_ach: intVal(limGr, 'disbursement_ach'),
+                        wire_internal: intVal(limGr, 'disbursement_wire_transfer_internal'),
+                        wire_external: intVal(limGr, 'disbursement_wire_transfer_external'),
+                        checks_internal: intVal(limGr, 'disbursement_official_checks_internal'),
+                        checks_external: intVal(limGr, 'disbursement_official_checks_external'),
+                        check_cashing_on_us: intVal(limGr, 'check_cashing_on_us'),
+                        check_cashing_not_on_us: intVal(limGr, 'check_cashing_not_on_us'),
+                        remote_deposit: intVal(limGr, 'remote_deposit'),
+                        treasury_wire: intVal(limGr, 'treasury_solutions_company_wire_limits'),
+                        fx_wire: intVal(limGr, 'fx_wire_limits'),
+                        overdraft_internal: intVal(limGr, 'overdraft_internal_accounts'),
+                        overdraft_external: intVal(limGr, 'overdraft_external_accounts'),
+                        unavailable_internal: intVal(limGr, 'unavailable_funds_internal_accounts'),
+                        unavailable_external: intVal(limGr, 'unavailable_funds_external_accounts')
+                    });
+                }
+            }
 
-            // Pull their current authority limits - NO date filter
-            var limGr = new GlideRecord('x_banun_bunow_si_0_authority_limits');
-            limGr.addQuery('job_code', jcSysId);
-            limGr.query();
+            // ── Step 4: Sort — changed rows use orig values for remove, current for others ──
+            function getSortVal(rowWrapper) {
+                var max = 0;
+                if (rowWrapper.type === 'changed') {
+                    var entry = rowWrapper.data;
+                    var reqType = entry.request_type;
+                    for (var f = 0; f < ALL_FIELDS.length; f++) {
+                        var field = ALL_FIELDS[f];
+                        var ncv, crv, v;
 
-            while (limGr.next()) {
-                lob.context.push({
-                    job_title:               jcSearch.getValue('job_description') || '',
-                    job_code:                jcSearch.getDisplayValue() || '',
-                    disbursement_ach:        intVal(limGr, 'disbursement_ach'),
-                    wire_internal:           intVal(limGr, 'disbursement_wire_transfer_internal'),
-                    wire_external:           intVal(limGr, 'disbursement_wire_transfer_external'),
-                    checks_internal:         intVal(limGr, 'disbursement_official_checks_internal'),
-                    checks_external:         intVal(limGr, 'disbursement_official_checks_external'),
-                    check_cashing_on_us:     intVal(limGr, 'check_cashing_on_us'),
-                    check_cashing_not_on_us: intVal(limGr, 'check_cashing_not_on_us'),
-                    remote_deposit:          intVal(limGr, 'remote_deposit'),
-                    treasury_wire:           intVal(limGr, 'treasury_solutions_company_wire_limits'),
-                    fx_wire:                 intVal(limGr, 'fx_wire_limits'),
-                    overdraft_internal:      intVal(limGr, 'overdraft_internal_accounts'),
-                    overdraft_external:      intVal(limGr, 'overdraft_external_accounts'),
-                    unavailable_internal:    intVal(limGr, 'unavailable_funds_internal_accounts'),
-                    unavailable_external:    intVal(limGr, 'unavailable_funds_external_accounts')
+                        if (reqType === 'remove_authority') {
+                            // Sort by original values so removed rows stay in their natural position
+                            ncv = entry.non_credit ? (entry.non_credit['orig_' + field] || 0) : 0;
+                            crv = entry.credit ? (entry.credit['orig_' + field] || 0) : 0;
+                        } else {
+                            ncv = entry.non_credit ? (entry.non_credit[field] || 0) : 0;
+                            crv = entry.credit ? (entry.credit[field] || 0) : 0;
+                        }
+
+                        v = ncv > crv ? ncv : crv;
+                        if (v > max) max = v;
+                    }
+                } else {
+                    var row = rowWrapper.data;
+                    for (var fi = 0; fi < ALL_FIELDS.length; fi++) {
+                        if ((row[ALL_FIELDS[fi]] || 0) > max) max = row[ALL_FIELDS[fi]] || 0;
+                    }
+                }
+                return max;
+            }
+
+            var allRows = [];
+            for (var ch = 0; ch < lob.changed.length; ch++) {
+                allRows.push({
+                    type: 'changed',
+                    data: lob.changed[ch]
                 });
             }
-        }
-
-        // ── Step 4: Sort — changed rows use orig values for remove, current for others ──
-        function getSortVal(rowWrapper) {
-            var max = 0;
-            if (rowWrapper.type === 'changed') {
-                var entry = rowWrapper.data;
-                var reqType = entry.request_type;
-                for (var f = 0; f < ALL_FIELDS.length; f++) {
-                    var field = ALL_FIELDS[f];
-                    var ncv, crv, v;
-
-                    if (reqType === 'remove_authority') {
-                        // Sort by original values so removed rows stay in their natural position
-                        ncv = entry.non_credit ? (entry.non_credit['orig_' + field] || 0) : 0;
-                        crv = entry.credit     ? (entry.credit['orig_' + field]     || 0) : 0;
-                    } else {
-                        ncv = entry.non_credit ? (entry.non_credit[field] || 0) : 0;
-                        crv = entry.credit     ? (entry.credit[field]     || 0) : 0;
-                    }
-
-                    v = ncv > crv ? ncv : crv;
-                    if (v > max) max = v;
-                }
-            } else {
-                var row = rowWrapper.data;
-                for (var fi = 0; fi < ALL_FIELDS.length; fi++) {
-                    if ((row[ALL_FIELDS[fi]] || 0) > max) max = row[ALL_FIELDS[fi]] || 0;
-                }
+            for (var cx = 0; cx < lob.context.length; cx++) {
+                allRows.push({
+                    type: 'context',
+                    data: lob.context[cx]
+                });
             }
-            return max;
+            allRows.sort(function(a, b) {
+                return getSortVal(b) - getSortVal(a);
+            });
+            lob.allRows = allRows;
         }
 
-        var allRows = [];
-        for (var ch = 0; ch < lob.changed.length; ch++) {
-            allRows.push({ type: 'changed', data: lob.changed[ch] });
-        }
-        for (var cx = 0; cx < lob.context.length; cx++) {
-            allRows.push({ type: 'context', data: lob.context[cx] });
-        }
-        allRows.sort(function(a, b) { return getSortVal(b) - getSortVal(a); });
-        lob.allRows = allRows;
-    }
-
-    // ── Step 5: Build HTML ────────────────────────────────────────────────
-    function buildCell(cur, orig, reqType, colorClass) {
-        if (reqType === 'remove_authority') {
-            if (orig === 0 && cur === 0) return '<td class="amt ' + colorClass + '">-</td>';
-            return '<td class="rem-cell ' + colorClass + '">' +
-                '<span class="rem-old">' + fmt(orig) + '</span>' +
-                '<span class="rem-new">$0</span>' +
+        // ── Step 5: Build HTML ────────────────────────────────────────────────
+        function buildCell(cur, orig, reqType, colorClass) {
+            if (reqType === 'remove_authority') {
+                if (orig === 0 && cur === 0) return '<td class="amt ' + colorClass + '">-</td>';
+                return '<td class="rem-cell ' + colorClass + '">' +
+                    '<span class="rem-old">' + fmt(orig) + '</span>' +
+                    '<span class="rem-new">$0</span>' +
+                    '</td>';
+            }
+            if (reqType === 'new_authority') {
+                if (cur === 0) return '<td class="amt ' + colorClass + '">-</td>';
+                return '<td class="new-cell ' + colorClass + '">' +
+                    '<span class="new-amt">' + fmt(cur) + '</span>' +
+                    '</td>';
+            }
+            // change_to_existing_authority
+            if (cur === orig) return '<td class="amt ' + colorClass + '">' + fmt(cur) + '</td>';
+            return '<td class="chg-cell ' + colorClass + '">' +
+                '<span class="old-val">' + fmt(orig) + '</span>' +
+                '<span class="new-val">' + fmt(cur) + '</span>' +
                 '</td>';
         }
-        if (reqType === 'new_authority') {
-            if (cur === 0) return '<td class="amt ' + colorClass + '">-</td>';
-            return '<td class="new-cell ' + colorClass + '">' +
-                '<span class="new-amt">' + fmt(cur) + '</span>' +
-                '</td>';
-        }
-        // change_to_existing_authority
-        if (cur === orig) return '<td class="amt ' + colorClass + '">' + fmt(cur) + '</td>';
-        return '<td class="chg-cell ' + colorClass + '">' +
-            '<span class="old-val">' + fmt(orig) + '</span>' +
-            '<span class="new-val">' + fmt(cur) + '</span>' +
-            '</td>';
-    }
 
-    function changedRow(entry) {
-        var reqType = entry.request_type;
-        var nc = entry.non_credit || {};
-        var cr = entry.credit || {};
-        var badge = '';
+        function changedRow(entry) {
+            var reqType = entry.request_type;
+            var nc = entry.non_credit || {};
+            var cr = entry.credit || {};
+            var badge = '';
 
-        if (reqType === 'remove_authority')
-            badge = '<span class="badge badge-rem">REMOVED</span>';
-        else if (reqType === 'new_authority')
-            badge = '<span class="badge badge-new">NEW AUTHORITY</span>';
-        else if (reqType === 'change_to_existing_authority')
-            badge = '<span class="badge badge-chg">CHANGED</span>';
+            if (reqType === 'remove_authority')
+                badge = '<span class="badge badge-rem">REMOVED</span>';
+            else if (reqType === 'new_authority')
+                badge = '<span class="badge badge-new">NEW AUTHORITY</span>';
+            else if (reqType === 'change_to_existing_authority')
+                badge = '<span class="badge badge-chg">CHANGED</span>';
 
-        var html = '<tr>';
-        html += '<td class="jt jt-' + reqType + '">' + entry.job_title + badge + '</td>';
-        html += buildCell(nc.disbursement_ach        || 0, nc.orig_disbursement_ach        || 0, reqType, 'nc');
-        html += buildCell(nc.wire_internal           || 0, nc.orig_wire_internal           || 0, reqType, 'nc');
-        html += buildCell(nc.wire_external           || 0, nc.orig_wire_external           || 0, reqType, 'nc');
-        html += buildCell(nc.checks_internal         || 0, nc.orig_checks_internal         || 0, reqType, 'nc');
-        html += buildCell(nc.checks_external         || 0, nc.orig_checks_external         || 0, reqType, 'nc');
-        html += buildCell(nc.check_cashing_on_us     || 0, nc.orig_check_cashing_on_us     || 0, reqType, 'nc');
-        html += buildCell(nc.check_cashing_not_on_us || 0, nc.orig_check_cashing_not_on_us || 0, reqType, 'nc');
-        html += buildCell(nc.remote_deposit          || 0, nc.orig_remote_deposit          || 0, reqType, 'nc');
-        html += buildCell(nc.treasury_wire           || 0, nc.orig_treasury_wire           || 0, reqType, 'nc');
-        html += buildCell(nc.fx_wire                 || 0, nc.orig_fx_wire                 || 0, reqType, 'nc');
-        html += buildCell(cr.overdraft_internal      || 0, cr.orig_overdraft_internal      || 0, reqType, 'cr');
-        html += buildCell(cr.overdraft_external      || 0, cr.orig_overdraft_external      || 0, reqType, 'cr');
-        html += buildCell(cr.unavailable_internal    || 0, cr.orig_unavailable_internal    || 0, reqType, 'cr');
-        html += buildCell(cr.unavailable_external    || 0, cr.orig_unavailable_external    || 0, reqType, 'cr');
-        html += '<td class="jc">' + entry.job_code + '</td>';
-        html += '</tr>';
-        return html;
-    }
-
-    function contextRow(row) {
-        var html = '<tr>';
-        html += '<td class="jt">' + row.job_title + '</td>';
-        html += '<td class="amt nc">' + fmt(row.disbursement_ach)        + '</td>';
-        html += '<td class="amt nc">' + fmt(row.wire_internal)           + '</td>';
-        html += '<td class="amt nc">' + fmt(row.wire_external)           + '</td>';
-        html += '<td class="amt nc">' + fmt(row.checks_internal)         + '</td>';
-        html += '<td class="amt nc">' + fmt(row.checks_external)         + '</td>';
-        html += '<td class="amt nc">' + fmt(row.check_cashing_on_us)     + '</td>';
-        html += '<td class="amt nc">' + fmt(row.check_cashing_not_on_us) + '</td>';
-        html += '<td class="amt nc">' + fmt(row.remote_deposit)          + '</td>';
-        html += '<td class="amt nc">' + fmt(row.treasury_wire)           + '</td>';
-        html += '<td class="amt nc">' + fmt(row.fx_wire)                 + '</td>';
-        html += '<td class="amt cr">' + fmt(row.overdraft_internal)      + '</td>';
-        html += '<td class="amt cr">' + fmt(row.overdraft_external)      + '</td>';
-        html += '<td class="amt cr">' + fmt(row.unavailable_internal)    + '</td>';
-        html += '<td class="amt cr">' + fmt(row.unavailable_external)    + '</td>';
-        html += '<td class="jc">'    + row.job_code                      + '</td>';
-        html += '</tr>';
-        return html;
-    }
-
-    function tableHeaders() {
-        var h = '<thead>';
-        h += '<tr>';
-        h += '<th rowspan="3" class="th-s th-job" style="width:14%;">Job title</th>';
-        h += '<th colspan="10" class="th-s th-nc">Non-credit authority</th>';
-        h += '<th colspan="4" class="th-s th-cr">Credit authority</th>';
-        h += '<th rowspan="3" class="th-s th-job" style="width:7%;">Job code</th>';
-        h += '</tr><tr>';
-        h += '<th colspan="5" class="th-sub th-sub-nc">Disbursement</th>';
-        h += '<th colspan="2" class="th-sub th-sub-nc">Check cashing</th>';
-        h += '<th colspan="3" class="th-sub th-sub-nc">Product limits</th>';
-        h += '<th colspan="2" class="th-sub th-sub-cr">Overdraft</th>';
-        h += '<th colspan="2" class="th-sub th-sub-cr">Unavailable funds</th>';
-        h += '</tr><tr>';
-        h += '<th class="th-col th-nc-col">ACH</th>';
-        h += '<th class="th-col th-nc-col">Wire<br/>Internal</th>';
-        h += '<th class="th-col th-nc-col">Wire<br/>External</th>';
-        h += '<th class="th-col th-nc-col">Official Checks<br/>Internal</th>';
-        h += '<th class="th-col th-nc-col">Official Checks<br/>External</th>';
-        h += '<th class="th-col th-nc-col">Check Cashing<br/>On-Us</th>';
-        h += '<th class="th-col th-nc-col">Check Cashing<br/>Not On-Us</th>';
-        h += '<th class="th-col th-nc-col">Remote<br/>Deposit</th>';
-        h += '<th class="th-col th-nc-col">Treasury<br/>Wire</th>';
-        h += '<th class="th-col th-nc-col">FX Wire</th>';
-        h += '<th class="th-col th-cr-col">Overdraft<br/>Internal</th>';
-        h += '<th class="th-col th-cr-col">Overdraft<br/>External</th>';
-        h += '<th class="th-col th-cr-col">Unavailable<br/>Internal</th>';
-        h += '<th class="th-col th-cr-col">Unavailable<br/>External</th>';
-        h += '</tr></thead>';
-        return h;
-    }
-
-    var css = [
-        '@page{size:landscape;margin:0.5in;}',
-        'body{font-family:Arial,sans-serif;margin:0;padding:15px;background:white;}',
-        '.report-header{margin-bottom:20px;border-bottom:3px solid #0066cc;padding-bottom:10px;}',
-        '.report-title{color:#0066cc;font-size:20px;font-weight:bold;margin:0 0 10px 0;}',
-        '.report-meta{background:#f4f4f4;padding:10px;border-left:3px solid #0066cc;margin:10px 0;}',
-        '.report-meta p{margin:3px 0;font-size:11px;color:#333;}',
-        '.lob-section{margin-bottom:30px;}',
-        '.lob-title{background:#0066cc;color:white;font-size:13px;font-weight:bold;padding:7px 12px;margin-bottom:0;}',
-        'table{width:100%;border-collapse:collapse;font-size:8px;table-layout:fixed;}',
-        'th,td{border:1px solid #ccc;padding:3px 4px;}',
-        '.th-s{text-align:center;font-weight:bold;font-size:10px;padding:5px 3px;}',
-        '.th-job{background:#e9ecef !important;color:#495057;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
-        '.th-nc{background:#d4edda !important;color:#155724;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
-        '.th-cr{background:#f8d7da !important;color:#721c24;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
-        '.th-sub{text-align:center;font-size:9px;font-weight:bold;padding:4px 2px;}',
-        '.th-sub-nc{background:#e8f5e9 !important;color:#2e7d32;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
-        '.th-sub-cr{background:#ffebee !important;color:#c62828;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
-        '.th-col{text-align:center;font-size:7px;font-weight:bold;color:#fff;padding:4px 2px;vertical-align:middle;line-height:1.2;}',
-        '.th-nc-col{background:#28a745 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
-        '.th-cr-col{background:#dc3545 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
-        'td.jt{text-align:left;font-size:8px;background:#f8f9fa !important;color:#2c3e50;font-weight:600;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
-        'td.jt-new_authority{color:#155724 !important;}',
-        'td.jt-change_to_existing_authority{color:#0066cc !important;}',
-        'td.jt-remove_authority{color:#a32d2d !important;}',
-        'td.jc{text-align:center;font-size:8px;background:#f8f9fa !important;color:#2c3e50;font-weight:600;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
-        'td.amt{text-align:right;font-size:8px;color:#2c3e50;}',
-        'td.nc{background:#e8f5e9 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
-        'td.cr{background:#ffebee !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
-        'tr:nth-child(even) td.jt,tr:nth-child(even) td.jc{background:#f0f0f0 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
-        '.badge{font-size:6.5px;font-weight:700;display:block;margin-top:2px;}',
-        '.badge-chg{color:#0066cc;}',
-        '.badge-new{color:#155724;}',
-        '.badge-rem{color:#a32d2d;}',
-        // CHANGED cells - blue
-        'td.chg-cell{text-align:right;vertical-align:middle;}',
-        'td.chg-cell.nc{background:#e8f5e9 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
-        'td.chg-cell.cr{background:#ffebee !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
-        '.old-val{text-decoration:line-through;color:#999;font-size:7px;display:block;line-height:1.3;}',
-        '.new-val{color:#0066cc;font-weight:700;font-size:8.5px;display:block;line-height:1.3;}',
-        // NEW cells - green
-        'td.new-cell{text-align:right;vertical-align:middle;}',
-        'td.new-cell.nc{background:#e8f5e9 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
-        'td.new-cell.cr{background:#ffebee !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
-        '.new-amt{color:#155724;font-weight:700;font-size:8.5px;display:block;}',
-        // REMOVED cells - red
-        'td.rem-cell{text-align:right;vertical-align:middle;}',
-        'td.rem-cell.nc{background:#e8f5e9 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
-        'td.rem-cell.cr{background:#ffebee !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
-        '.rem-old{text-decoration:line-through;color:#a32d2d;font-size:7px;display:block;line-height:1.3;}',
-        '.rem-new{color:#a32d2d;font-weight:700;font-size:8px;display:block;line-height:1.3;}',
-        '@media print{*{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}}'
-    ].join('');
-
-    var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>' + css + '</style></head><body>';
-    html += '<div class="report-header">';
-    html += '<div class="report-title">Authority Limits \u2014 Management Report</div>';
-    html += '<div class="report-meta">';
-    html += '<p><strong>Date Range:</strong> ' + startDate + ' to ' + endDate + '</p>';
-    html += '<p><strong>Generated:</strong> ' + new GlideDateTime().getDisplayValue() + '</p>';
-    html += '</div></div>';
-
-    for (var lobKey in lobMap) {
-        var lob = lobMap[lobKey];
-        html += '<div class="lob-section">';
-        html += '<div class="lob-title">Line of Business: ' + lob.lob_name + '</div>';
-        html += '<table>' + tableHeaders() + '<tbody>';
-
-        for (var r = 0; r < lob.allRows.length; r++) {
-            var row = lob.allRows[r];
-            html += row.type === 'changed' ? changedRow(row.data) : contextRow(row.data);
+            var html = '<tr>';
+            html += '<td class="jt jt-' + reqType + '">' + entry.job_title + badge + '</td>';
+            html += buildCell(nc.disbursement_ach || 0, nc.orig_disbursement_ach || 0, reqType, 'nc');
+            html += buildCell(nc.wire_internal || 0, nc.orig_wire_internal || 0, reqType, 'nc');
+            html += buildCell(nc.wire_external || 0, nc.orig_wire_external || 0, reqType, 'nc');
+            html += buildCell(nc.checks_internal || 0, nc.orig_checks_internal || 0, reqType, 'nc');
+            html += buildCell(nc.checks_external || 0, nc.orig_checks_external || 0, reqType, 'nc');
+            html += buildCell(nc.check_cashing_on_us || 0, nc.orig_check_cashing_on_us || 0, reqType, 'nc');
+            html += buildCell(nc.check_cashing_not_on_us || 0, nc.orig_check_cashing_not_on_us || 0, reqType, 'nc');
+            html += buildCell(nc.remote_deposit || 0, nc.orig_remote_deposit || 0, reqType, 'nc');
+            html += buildCell(nc.treasury_wire || 0, nc.orig_treasury_wire || 0, reqType, 'nc');
+            html += buildCell(nc.fx_wire || 0, nc.orig_fx_wire || 0, reqType, 'nc');
+            html += buildCell(cr.overdraft_internal || 0, cr.orig_overdraft_internal || 0, reqType, 'cr');
+            html += buildCell(cr.overdraft_external || 0, cr.orig_overdraft_external || 0, reqType, 'cr');
+            html += buildCell(cr.unavailable_internal || 0, cr.orig_unavailable_internal || 0, reqType, 'cr');
+            html += buildCell(cr.unavailable_external || 0, cr.orig_unavailable_external || 0, reqType, 'cr');
+            html += '<td class="jc">' + entry.job_code + '</td>';
+            html += '</tr>';
+            return html;
         }
 
-        html += '</tbody></table></div>';
-    }
+        function contextRow(row) {
+            var html = '<tr>';
+            html += '<td class="jt">' + row.job_title + '</td>';
+            html += '<td class="amt nc">' + fmt(row.disbursement_ach) + '</td>';
+            html += '<td class="amt nc">' + fmt(row.wire_internal) + '</td>';
+            html += '<td class="amt nc">' + fmt(row.wire_external) + '</td>';
+            html += '<td class="amt nc">' + fmt(row.checks_internal) + '</td>';
+            html += '<td class="amt nc">' + fmt(row.checks_external) + '</td>';
+            html += '<td class="amt nc">' + fmt(row.check_cashing_on_us) + '</td>';
+            html += '<td class="amt nc">' + fmt(row.check_cashing_not_on_us) + '</td>';
+            html += '<td class="amt nc">' + fmt(row.remote_deposit) + '</td>';
+            html += '<td class="amt nc">' + fmt(row.treasury_wire) + '</td>';
+            html += '<td class="amt nc">' + fmt(row.fx_wire) + '</td>';
+            html += '<td class="amt cr">' + fmt(row.overdraft_internal) + '</td>';
+            html += '<td class="amt cr">' + fmt(row.overdraft_external) + '</td>';
+            html += '<td class="amt cr">' + fmt(row.unavailable_internal) + '</td>';
+            html += '<td class="amt cr">' + fmt(row.unavailable_external) + '</td>';
+            html += '<td class="jc">' + row.job_code + '</td>';
+            html += '</tr>';
+            return html;
+        }
 
-    html += '</body></html>';
-    return html;
-},
+        function tableHeaders() {
+            var h = '<thead>';
+            h += '<tr>';
+            h += '<th rowspan="3" class="th-s th-job" style="width:14%;">Job title</th>';
+            h += '<th colspan="10" class="th-s th-nc">Non-credit authority</th>';
+            h += '<th colspan="4" class="th-s th-cr">Credit authority</th>';
+            h += '<th rowspan="3" class="th-s th-job" style="width:7%;">Job code</th>';
+            h += '</tr><tr>';
+            h += '<th colspan="5" class="th-sub th-sub-nc">Disbursement</th>';
+            h += '<th colspan="2" class="th-sub th-sub-nc">Check cashing</th>';
+            h += '<th colspan="3" class="th-sub th-sub-nc">Product limits</th>';
+            h += '<th colspan="2" class="th-sub th-sub-cr">Overdraft</th>';
+            h += '<th colspan="2" class="th-sub th-sub-cr">Unavailable funds</th>';
+            h += '</tr><tr>';
+            h += '<th class="th-col th-nc-col">ACH</th>';
+            h += '<th class="th-col th-nc-col">Wire<br/>Internal</th>';
+            h += '<th class="th-col th-nc-col">Wire<br/>External</th>';
+            h += '<th class="th-col th-nc-col">Official Checks<br/>Internal</th>';
+            h += '<th class="th-col th-nc-col">Official Checks<br/>External</th>';
+            h += '<th class="th-col th-nc-col">Check Cashing<br/>On-Us</th>';
+            h += '<th class="th-col th-nc-col">Check Cashing<br/>Not On-Us</th>';
+            h += '<th class="th-col th-nc-col">Remote<br/>Deposit</th>';
+            h += '<th class="th-col th-nc-col">Treasury<br/>Wire</th>';
+            h += '<th class="th-col th-nc-col">FX Wire</th>';
+            h += '<th class="th-col th-cr-col">Overdraft<br/>Internal</th>';
+            h += '<th class="th-col th-cr-col">Overdraft<br/>External</th>';
+            h += '<th class="th-col th-cr-col">Unavailable<br/>Internal</th>';
+            h += '<th class="th-col th-cr-col">Unavailable<br/>External</th>';
+            h += '</tr></thead>';
+            return h;
+        }
+
+        var css = [
+            '@page{size:landscape;margin:0.5in;}',
+            'body{font-family:Arial,sans-serif;margin:0;padding:15px;background:white;}',
+            '.report-header{margin-bottom:20px;border-bottom:3px solid #0066cc;padding-bottom:10px;}',
+            '.report-title{color:#0066cc;font-size:20px;font-weight:bold;margin:0 0 10px 0;}',
+            '.report-meta{background:#f4f4f4;padding:10px;border-left:3px solid #0066cc;margin:10px 0;}',
+            '.report-meta p{margin:3px 0;font-size:11px;color:#333;}',
+            '.lob-section{margin-bottom:30px;}',
+            '.lob-title{background:#0066cc;color:white;font-size:13px;font-weight:bold;padding:7px 12px;margin-bottom:0;}',
+            'table{width:100%;border-collapse:collapse;font-size:8px;table-layout:fixed;}',
+            'th,td{border:1px solid #ccc;padding:3px 4px;}',
+            '.th-s{text-align:center;font-weight:bold;font-size:10px;padding:5px 3px;}',
+            '.th-job{background:#e9ecef !important;color:#495057;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
+            '.th-nc{background:#d4edda !important;color:#155724;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
+            '.th-cr{background:#f8d7da !important;color:#721c24;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
+            '.th-sub{text-align:center;font-size:9px;font-weight:bold;padding:4px 2px;}',
+            '.th-sub-nc{background:#e8f5e9 !important;color:#2e7d32;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
+            '.th-sub-cr{background:#ffebee !important;color:#c62828;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
+            '.th-col{text-align:center;font-size:7px;font-weight:bold;color:#fff;padding:4px 2px;vertical-align:middle;line-height:1.2;}',
+            '.th-nc-col{background:#28a745 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
+            '.th-cr-col{background:#dc3545 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
+            'td.jt{text-align:left;font-size:8px;background:#f8f9fa !important;color:#2c3e50;font-weight:600;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
+            'td.jt-new_authority{color:#155724 !important;}',
+            'td.jt-change_to_existing_authority{color:#0066cc !important;}',
+            'td.jt-remove_authority{color:#a32d2d !important;}',
+            'td.jc{text-align:center;font-size:8px;background:#f8f9fa !important;color:#2c3e50;font-weight:600;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
+            'td.amt{text-align:right;font-size:8px;color:#2c3e50;}',
+            'td.nc{background:#e8f5e9 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
+            'td.cr{background:#ffebee !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
+            'tr:nth-child(even) td.jt,tr:nth-child(even) td.jc{background:#f0f0f0 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
+            '.badge{font-size:6.5px;font-weight:700;display:block;margin-top:2px;}',
+            '.badge-chg{color:#0066cc;}',
+            '.badge-new{color:#155724;}',
+            '.badge-rem{color:#a32d2d;}',
+            // CHANGED cells - blue
+            'td.chg-cell{text-align:right;vertical-align:middle;}',
+            'td.chg-cell.nc{background:#e8f5e9 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
+            'td.chg-cell.cr{background:#ffebee !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
+            '.old-val{text-decoration:line-through;color:#999;font-size:7px;display:block;line-height:1.3;}',
+            '.new-val{color:#0066cc;font-weight:700;font-size:8.5px;display:block;line-height:1.3;}',
+            // NEW cells - green
+            'td.new-cell{text-align:right;vertical-align:middle;}',
+            'td.new-cell.nc{background:#e8f5e9 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
+            'td.new-cell.cr{background:#ffebee !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
+            '.new-amt{color:#155724;font-weight:700;font-size:8.5px;display:block;}',
+            // REMOVED cells - red
+            'td.rem-cell{text-align:right;vertical-align:middle;}',
+            'td.rem-cell.nc{background:#e8f5e9 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
+            'td.rem-cell.cr{background:#ffebee !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
+            '.rem-old{text-decoration:line-through;color:#a32d2d;font-size:7px;display:block;line-height:1.3;}',
+            '.rem-new{color:#a32d2d;font-weight:700;font-size:8px;display:block;line-height:1.3;}',
+            '@media print{*{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}}'
+        ].join('');
+
+        var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>' + css + '</style></head><body>';
+        html += '<div class="report-header">';
+        html += '<div class="report-title">Authority Limits \u2014 Management Report</div>';
+        html += '<div class="report-meta">';
+        html += '<p><strong>Date Range:</strong> ' + startDate + ' to ' + endDate + '</p>';
+        html += '<p><strong>Generated:</strong> ' + new GlideDateTime().getDisplayValue() + '</p>';
+        html += '</div></div>';
+
+        for (var lobKey in lobMap) {
+            var lob = lobMap[lobKey];
+            html += '<div class="lob-section">';
+            html += '<div class="lob-title">Line of Business: ' + lob.lob_name + '</div>';
+            html += '<table>' + tableHeaders() + '<tbody>';
+
+            for (var r = 0; r < lob.allRows.length; r++) {
+                var row = lob.allRows[r];
+                html += row.type === 'changed' ? changedRow(row.data) : contextRow(row.data);
+            }
+
+            html += '</tbody></table></div>';
+        }
+
+        html += '</body></html>';
+        return html;
+    },
