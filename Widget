@@ -1,0 +1,211 @@
+//HTML
+
+<div class="report-generator">
+    <div class="rg-header">
+        <h4>Authority Limits — Management Report</h4>
+        <p>Select a date range and generate the report. It will be emailed to you as a PDF.</p>
+    </div>
+
+    <div class="rg-form" ng-if="!c.status">
+        <div class="rg-row">
+            <div class="rg-field">
+                <label>Start Date</label>
+                <input type="date" ng-model="c.startDate" class="rg-input" />
+            </div>
+            <div class="rg-field">
+                <label>End Date</label>
+                <input type="date" ng-model="c.endDate" class="rg-input" />
+            </div>
+        </div>
+        <button class="rg-btn" ng-click="c.generate()" ng-disabled="c.loading">
+            <span ng-if="!c.loading">Generate &amp; Email Report</span>
+            <span ng-if="c.loading">Generating...</span>
+        </button>
+    </div>
+
+    <div class="rg-result rg-success" ng-if="c.status === 'success'">
+        <span>&#10003;</span> {{c.message}}
+        <div class="rg-again">
+            <a href="" ng-click="c.reset()">Generate another report</a>
+        </div>
+    </div>
+
+    <div class="rg-result rg-error" ng-if="c.status === 'error'">
+        <span>&#10007;</span> {{c.message}}
+        <div class="rg-again">
+            <a href="" ng-click="c.reset()">Try again</a>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+
+
+
+
+/CDD
+
+.report-generator {
+    font-family: Arial, sans-serif;
+    max-width: 480px;
+    margin: 20px auto;
+    padding: 24px;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+.rg-header h4 {
+    color: #0066cc;
+    margin: 0 0 6px 0;
+    font-size: 16px;
+}
+.rg-header p {
+    color: #666;
+    font-size: 13px;
+    margin: 0 0 20px 0;
+}
+.rg-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+.rg-field {
+    flex: 1;
+}
+.rg-field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #444;
+    margin-bottom: 5px;
+}
+.rg-input {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 13px;
+    box-sizing: border-box;
+}
+.rg-btn {
+    background: #0066cc;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+}
+.rg-btn:disabled {
+    background: #7aabdd;
+    cursor: not-allowed;
+}
+.rg-result {
+    font-size: 13px;
+    padding: 14px;
+    border-radius: 4px;
+    text-align: center;
+}
+.rg-success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+.rg-error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+.rg-again {
+    margin-top: 10px;
+    font-size: 12px;
+}
+.rg-again a {
+    color: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+
+
+
+
+
+
+
+
+//Client Script
+
+function($scope, $http) {
+    var c = this;
+    c.startDate = '';
+    c.endDate = '';
+    c.loading = false;
+    c.status = null;
+    c.message = '';
+
+    c.generate = function() {
+        if (!c.startDate || !c.endDate) {
+            c.status = 'error';
+            c.message = 'Please select both a start date and end date.';
+            return;
+        }
+        if (c.startDate > c.endDate) {
+            c.status = 'error';
+            c.message = 'Start date must be before end date.';
+            return;
+        }
+        c.loading = true;
+        c.status = null;
+        $scope.server.get({
+            action: 'generate',
+            startDate: c.startDate,
+            endDate: c.endDate
+        }).then(function(r) {
+            c.loading = false;
+            if (r.data.success) {
+                c.status = 'success';
+                c.message = r.data.message;
+            } else {
+                c.status = 'error';
+                c.message = r.data.message;
+            }
+        });
+    };
+
+    c.reset = function() {
+        c.status = null;
+        c.message = '';
+        c.startDate = '';
+        c.endDate = '';
+    };
+}
+
+
+
+
+
+
+
+
+
+// Server script
+
+(function() {
+    if (input && input.action === 'generate') {
+        var helper = new x_banun_bunow_si_0.SignatureHelper();
+        var result = helper.generateAndEmailManagementReport(
+            input.startDate,
+            input.endDate,
+            gs.getUserID()
+        );
+        data.success = result.success;
+        data.message = result.message;
+    }
+})();
