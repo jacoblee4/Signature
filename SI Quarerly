@@ -449,7 +449,7 @@ buildManagementReportHTML: function(startDate, endDate) {
         'td.nc{background:#e8f5e9 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
         'td.cr{background:#ffebee !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
         'tr:nth-child(even) td.jt,tr:nth-child(even) td.jc{background:#f0f0f0 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
-        '.badge{font-size:6px;font-weight:700;display:inline-block;margin-left:4px;vertical-align:middle;white-space:nowrap;}',
+        '.badge{font-size:6px;font-weight:700;display:inline;margin-left:3px;}',
         '.badge-chg{color:#0066cc;}',
         '.badge-new{color:#155724;}',
         '.badge-rem{color:#a32d2d;}',
