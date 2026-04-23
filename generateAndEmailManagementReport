@@ -1,0 +1,88 @@
+generateAndEmailManagementReport: function(startDate, endDate, recipientSysId) {
+
+    // Get most recently closed signature request to use as attachment anchor
+    var anchorGr = new GlideRecord('x_banun_bunow_si_0_signature_request');
+    anchorGr.addQuery('state', 'closed_complete');
+    anchorGr.orderByDesc('closed_at');
+    anchorGr.setLimit(1);
+    anchorGr.query();
+
+    if (!anchorGr.next()) {
+        gs.info('SIGNATURE REPORT: No closed_complete records found to use as attachment anchor');
+        return { success: false, message: 'No closed records found. Cannot generate report.' };
+    }
+
+    var anchorSysId = anchorGr.getValue('sys_id');
+
+    // Generate HTML
+    var html = this.buildManagementReportHTML(startDate, endDate);
+    if (!html) {
+        return { success: false, message: 'No data found for the selected date range.' };
+    }
+
+    // Generate PDF
+    var hfInfo = {
+        'PageSize': 'A4',
+        'Orientation': 'LANDSCAPE',
+        'GeneratePageNumber': 'true',
+        'TopOrBottomMargin': '20',
+        'LeftOrRightMargin': '20'
+    };
+
+    var pdfFileName = 'Authority_Limits_Management_Report_' + startDate + '_to_' + endDate + '.pdf';
+    var pdfAPI = new sn_pdfgeneratorutils.PDFGenerationAPI();
+    var result = pdfAPI.convertToPDFWithHeaderFooter(
+        html,
+        'x_banun_bunow_si_0_signature_request',
+        anchorSysId,
+        pdfFileName,
+        hfInfo
+    );
+
+    if (!result || !result.attachmentId) {
+        gs.info('SIGNATURE REPORT: PDF generation failed - ' + JSON.stringify(result));
+        return { success: false, message: 'PDF generation failed. Please contact your administrator.' };
+    }
+
+    // Get recipient email
+    var userGr = new GlideRecord('sys_user');
+    if (!userGr.get(recipientSysId)) {
+        return { success: false, message: 'Could not resolve recipient user.' };
+    }
+
+    var recipientEmail = userGr.getValue('email');
+    var recipientName = userGr.getValue('first_name') || 'User';
+
+    if (!recipientEmail) {
+        return { success: false, message: 'No email address found for your user account.' };
+    }
+
+    // Send email with attachment
+    var sm = new GlideEmailOutbound();
+    sm.setTo(recipientEmail);
+    sm.setSubject('Authority Limits Management Report: ' + startDate + ' to ' + endDate);
+    sm.setBody(
+        'Hello ' + recipientName + ',\n\n' +
+        'Please find attached the Authority Limits Management Report for the period ' + startDate + ' to ' + endDate + '.\n\n' +
+        'This report was generated on ' + new GlideDateTime().getDisplayValue() + '.\n\n' +
+        'This is an automated message. Please do not reply to this email.'
+    );
+    sm.addAttachment(
+        'x_banun_bunow_si_0_signature_request',
+        anchorSysId,
+        pdfFileName
+    );
+    sm.save();
+
+    // Clean up the attachment from the anchor record so we don't litter
+    var attGr = new GlideRecord('sys_attachment');
+    attGr.addQuery('table_name', 'x_banun_bunow_si_0_signature_request');
+    attGr.addQuery('table_sys_id', anchorSysId);
+    attGr.addQuery('file_name', pdfFileName);
+    attGr.query();
+    if (attGr.next()) {
+        attGr.deleteRecord();
+    }
+
+    return { success: true, message: 'Report sent to ' + recipientEmail };
+},
