@@ -471,7 +471,7 @@ buildManagementReportHTML: function(startDate, endDate) {
             'td.chg-cell.nc{background:#e8f5e9 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
             'td.chg-cell.cr{background:#ffebee !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
             '.old-val{text-decoration:line-through;color:#999;font-size:7px;display:block;line-height:1.3;}',
-            '.new-val{color:#0066cc;font-weight:700;font-size:8.5px;display:block;line-height:1.3;}',
+            '.badge{font-size:6px;font-weight:700;display:inline-block;margin-left:4px;vertical-align:middle;white-space:nowrap;}',
             '.chg-val{color:#0066cc;font-weight:700;font-size:8.5px;display:block;line-height:1.3;}',
             // NEW cells - green
             'td.new-cell{text-align:right;vertical-align:middle;}',
