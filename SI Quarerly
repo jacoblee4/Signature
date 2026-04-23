@@ -343,7 +343,7 @@ buildManagementReportHTML: function(startDate, endDate) {
             if (cur === orig) return '<td class="amt ' + colorClass + '">' + fmt(cur) + '</td>';
             return '<td class="chg-cell ' + colorClass + '">' +
                 '<span class="old-val">' + fmt(orig) + '</span>' +
-                '<span class="new-val">' + fmt(cur) + '</span>' +
+                '<span class="new-val chg-val">' + fmt(cur) + '</span>' +
                 '</td>';
         }
 
@@ -356,7 +356,7 @@ buildManagementReportHTML: function(startDate, endDate) {
             if (reqType === 'remove_authority')
                 badge = '<span class="badge badge-rem">REMOVED</span>';
             else if (reqType === 'new_authority')
-                badge = '<span class="badge badge-new">NEW AUTHORITY</span>';
+                badge = '<span class="badge badge-new">NEW</span>';
             else if (reqType === 'change_to_existing_authority')
                 badge = '<span class="badge badge-chg">CHANGED</span>';
 
@@ -457,9 +457,6 @@ buildManagementReportHTML: function(startDate, endDate) {
             '.th-nc-col{background:#28a745 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
             '.th-cr-col{background:#dc3545 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
             'td.jt{text-align:left;font-size:8px;background:#f8f9fa !important;color:#2c3e50;font-weight:600;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
-            'td.jt-new_authority{color:#155724 !important;}',
-            'td.jt-change_to_existing_authority{color:#0066cc !important;}',
-            'td.jt-remove_authority{color:#a32d2d !important;}',
             'td.jc{text-align:center;font-size:8px;background:#f8f9fa !important;color:#2c3e50;font-weight:600;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
             'td.amt{text-align:right;font-size:8px;color:#2c3e50;}',
             'td.nc{background:#e8f5e9 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
