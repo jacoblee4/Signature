@@ -189,7 +189,7 @@
 
 //Client Script
 
-api.controller = function($scope, $timeout, spUtil) {
+api.controller = function($scope, $timeout) {
     var c = this;
     c.loading = false;
     c.status = null;
@@ -201,19 +201,7 @@ api.controller = function($scope, $timeout, spUtil) {
 
     c.$onInit = function() {
         $timeout(function() {
-            var today = new Date();
-            var yesterday = new Date();
-            yesterday.setDate(today.getDate() - 1);
-
-            function formatDate(d) {
-                var mm = d.getMonth() + 1;
-                var dd = d.getDate();
-                return d.getFullYear() + '-' + (mm < 10 ? '0' + mm : mm) + '-' + (dd < 10 ? '0' + dd : dd);
-            }
-
-            c.startDate = formatDate(yesterday);
-            c.endDate = formatDate(today);
-            c.recipientEmail = data.currentUserEmail || '';
+            c.recipientEmail = c.data.currentUserEmail || '';
         }, 100);
     };
 
@@ -265,6 +253,8 @@ api.controller = function($scope, $timeout, spUtil) {
         c.status = null;
         c.message = '';
         c.logs = [];
+        c.startDate = '';
+        c.endDate = '';
     };
 };
 
@@ -277,7 +267,7 @@ api.controller = function($scope, $timeout, spUtil) {
 // Server script
 
 (function() {
-    // Always provide current user email for default
+    // Always provide current user email for default - runs on every page load
     var currentUser = new GlideRecord('sys_user');
     if (currentUser.get(gs.getUserID())) {
         data.currentUserEmail = currentUser.getValue('email') || '';
