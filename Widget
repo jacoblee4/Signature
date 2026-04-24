@@ -55,7 +55,6 @@
 
 
 
-
 /CDD
 
 .report-generator {
@@ -182,9 +181,10 @@
 
 
 
+
 //Client Script
 
-function($scope, $http) {
+api.controller = function($scope, $http) {
     var c = this;
     c.startDate = '';
     c.endDate = '';
