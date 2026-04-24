@@ -58,11 +58,11 @@ generateAndEmailManagementReport: function(startDate, endDate, recipientSysId) {
         logs.push('INFO: result.' + key + ' = ' + result[key]);
     }
 
-    if (!result.attachmentId) {
-        logs.push('ERROR: result.attachmentId is missing or empty');
-        return { success: false, message: 'PDF generation failed. Please contact your administrator.', logs: logs };
-    }
-    logs.push('OK: PDF generated, attachmentId = ' + result.attachmentId);
+    if (!result.attachment_id) {
+    logs.push('ERROR: result.attachment_id is missing or empty');
+    return { success: false, message: 'PDF generation failed. Please contact your administrator.', logs: logs };
+}
+logs.push('OK: PDF generated, attachment_id = ' + result.attachment_id);
 
     // Get recipient
     var userGr = new GlideRecord('sys_user');
