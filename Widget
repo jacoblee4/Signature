@@ -198,8 +198,8 @@ api.controller = function($scope) {
 
         $scope.server.get({
             action: 'generate',
-            startDate: '2025-01-01',
-            endDate: '2026-04-24'
+            startDate: c.startDate.substring(0, 10),
+            endDate: c.endDate.substring(0, 10)
         }).then(function(r) {
             c.loading = false;
             c.logs = r.data.logs || ['No logs returned'];
