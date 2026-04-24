@@ -88,30 +88,17 @@ generateAndEmailManagementReport: function(startDate, endDate, recipientSysId) {
         }
         logs.push('OK: PDF generated, attachment_id = ' + result.attachment_id);
 
-        // Get recipient
-        var userGr = new GlideRecord('sys_user');
-        if (!userGr.get(recipientSysId)) {
-            logs.push('ERROR: Could not find user record for sys_id ' + recipientSysId);
-            return {
-                success: false,
-                message: 'Could not resolve recipient user.',
-                logs: logs
-            };
-        }
-
-        var recipientEmail = userGr.getValue('email');
-        var recipientName = userGr.getValue('first_name') || 'User';
-        logs.push('OK: Recipient resolved - ' + recipientEmail);
-
-        if (!recipientEmail) {
-            logs.push('ERROR: User has no email address');
-            return {
-                success: false,
-                message: 'No email address found for your user account.',
-                logs: logs
-            };
-        }
-
+        // Recipient email passed directly
+var recipientEmail = recipientSysId; // parameter is now the email directly
+if (!recipientEmail) {
+    logs.push('ERROR: No recipient email provided');
+    return {
+        success: false,
+        message: 'No recipient email provided.',
+        logs: logs
+    };
+}
+logs.push('OK: Recipient email - ' + recipientEmail);
         // Fire event — notification handles email and attachment
         gs.eventQueue(
             'x_banun_bunow_si_0.management_report_gen',
