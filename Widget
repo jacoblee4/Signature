@@ -189,33 +189,39 @@
 
 //Client Script
 
-api.controller = function($scope) {
+api.controller = function($scope, $timeout, spUtil) {
     var c = this;
     c.loading = false;
     c.status = null;
     c.message = '';
     c.logs = [];
+    c.startDate = '';
+    c.endDate = '';
+    c.recipientEmail = '';
 
-    // Default dates - yesterday to today
-    var today = new Date();
-    var yesterday = new Date();
-    yesterday.setDate(today.getDate() - 1);
+    c.$onInit = function() {
+        $timeout(function() {
+            var today = new Date();
+            var yesterday = new Date();
+            yesterday.setDate(today.getDate() - 1);
 
-    function formatDate(d) {
-        var mm = d.getMonth() + 1;
-        var dd = d.getDate();
-        return d.getFullYear() + '-' + (mm < 10 ? '0' + mm : mm) + '-' + (dd < 10 ? '0' + dd : dd);
-    }
+            function formatDate(d) {
+                var mm = d.getMonth() + 1;
+                var dd = d.getDate();
+                return d.getFullYear() + '-' + (mm < 10 ? '0' + mm : mm) + '-' + (dd < 10 ? '0' + dd : dd);
+            }
 
-    c.startDate = formatDate(yesterday);
-    c.endDate = formatDate(today);
-    c.recipientEmail = data.currentUserEmail || '';
+            c.startDate = formatDate(yesterday);
+            c.endDate = formatDate(today);
+            c.recipientEmail = data.currentUserEmail || '';
+        }, 100);
+    };
 
     c.generate = function() {
-        var sd = c.startDate ? c.startDate.substring(0, 10) : 'MISSING';
-        var ed = c.endDate ? c.endDate.substring(0, 10) : 'MISSING';
+        var sd = c.startDate ? c.startDate.substring(0, 10) : '';
+        var ed = c.endDate ? c.endDate.substring(0, 10) : '';
 
-        if (sd === 'MISSING' || ed === 'MISSING') {
+        if (!sd || !ed) {
             c.status = 'error';
             c.message = 'Please select both a start date and end date.';
             return;
@@ -237,7 +243,7 @@ api.controller = function($scope) {
         c.status = null;
         c.logs = [];
 
-        $scope.server.get({
+        c.server.get({
             action: 'generate',
             startDate: sd,
             endDate: ed,
@@ -250,7 +256,7 @@ api.controller = function($scope) {
         }, function(err) {
             c.loading = false;
             c.status = 'error';
-            c.message = 'FAILED';
+            c.message = 'Server call failed.';
             c.logs = ['ERROR: ' + JSON.stringify(err)];
         });
     };
@@ -259,11 +265,8 @@ api.controller = function($scope) {
         c.status = null;
         c.message = '';
         c.logs = [];
-        c.startDate = formatDate(yesterday);
-        c.endDate = formatDate(today);
     };
 };
-
 
 
 
