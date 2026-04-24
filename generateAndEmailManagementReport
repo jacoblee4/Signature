@@ -121,7 +121,7 @@ if (!anchorSysId) {
         logs.push('INFO: Sending email to ' + recipientEmail);
        var emailGr = new GlideRecord('sys_email');
 emailGr.setValue('type', 'send');
-emailGr.setValue('to', recipientEmail);
+emailGr.setValue('recipients', recipientEmail);
 emailGr.setValue('subject', 'Authority Limits Management Report: ' + startDate + ' to ' + endDate);
 emailGr.setValue('body',
     'Hello ' + recipientName + ',\n\n' +
@@ -132,19 +132,16 @@ emailGr.setValue('body',
 var emailSysId = emailGr.insert();
 logs.push('OK: Email record created - ' + emailSysId);
 
-// Move attachment from anchor record to email record
+// Move attachment using the attachment_id returned by the PDF API
 var attMoveGr = new GlideRecord('sys_attachment');
-attMoveGr.addQuery('table_name', anchorTable);
-attMoveGr.addQuery('table_sys_id', anchorSysId);
-attMoveGr.addQuery('file_name', pdfFileName);
-attMoveGr.query();
-if (attMoveGr.next()) {
+if (attMoveGr.get(result.attachment_id)) {
+    logs.push('OK: Attachment found - table=' + attMoveGr.getValue('table_name') + ' sys_id=' + attMoveGr.getValue('table_sys_id'));
     attMoveGr.setValue('table_name', 'sys_email');
     attMoveGr.setValue('table_sys_id', emailSysId);
     attMoveGr.update();
     logs.push('OK: Attachment moved to email record');
 } else {
-    logs.push('WARN: Attachment not found to move to email record');
+    logs.push('WARN: Attachment not found by attachment_id - ' + result.attachment_id);
 }
         // Clean up attachment
         logs.push('INFO: Cleaning up attachment from anchor record');
