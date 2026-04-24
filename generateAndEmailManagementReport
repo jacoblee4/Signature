@@ -1,4 +1,4 @@
-generateAndEmailManagementReport: function(startDate, endDate, recipientSysId) {
+ generateAndEmailManagementReport: function(startDate, endDate, recipientSysId) {
         var logs = [];
 
         // Find the dedicated report anchor system property
@@ -89,16 +89,16 @@ generateAndEmailManagementReport: function(startDate, endDate, recipientSysId) {
         logs.push('OK: PDF generated, attachment_id = ' + result.attachment_id);
 
         // Recipient email passed directly
-var recipientEmail = recipientSysId; // parameter is now the email directly
-if (!recipientEmail) {
-    logs.push('ERROR: No recipient email provided');
-    return {
-        success: false,
-        message: 'No recipient email provided.',
-        logs: logs
-    };
-}
-logs.push('OK: Recipient email - ' + recipientEmail);
+        var recipientEmail = recipientSysId; // parameter is now the email directly
+        if (!recipientEmail) {
+            logs.push('ERROR: No recipient email provided');
+            return {
+                success: false,
+                message: 'No recipient email provided.',
+                logs: logs
+            };
+        }
+        logs.push('OK: Recipient email - ' + recipientEmail);
         // Fire event — notification handles email and attachment
         gs.eventQueue(
             'x_banun_bunow_si_0.management_report_gen',
