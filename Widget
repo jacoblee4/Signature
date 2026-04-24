@@ -55,7 +55,7 @@
 
 
 
-/CDD
+//CSS
 
 .report-generator {
     font-family: Arial, sans-serif;
@@ -182,6 +182,7 @@
 
 
 
+
 //Client Script
 
 api.controller = function($scope) {
@@ -195,11 +196,21 @@ api.controller = function($scope) {
         c.loading = true;
         c.status = null;
         c.logs = [];
+			
+			var sd = c.startDate ? c.startDate.substring(0, 10) : 'MISSING';
+			var ed = c.endDate ? c.endDate.substring(0, 10) : 'MISSING';
+			
+			if (sd === 'MISSING' || ed == 'MISSING'){
+				c.loading = false;
+        c.status = 'error';
+        c.message = 'error';
+			}
+			
 
         $scope.server.get({
             action: 'generate',
-            startDate: c.startDate.substring(0, 10),
-            endDate: c.endDate.substring(0, 10)
+            startDate: sd,
+            endDate: ed
         }).then(function(r) {
             c.loading = false;
             c.logs = r.data.logs || ['No logs returned'];
@@ -248,3 +259,4 @@ api.controller = function($scope) {
         }
     }
 })();
+
