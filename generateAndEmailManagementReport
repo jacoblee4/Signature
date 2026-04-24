@@ -1,116 +1,78 @@
- generateAndEmailManagementReport: function(startDate, endDate, recipientSysId) {
-        var logs = [];
+generateAndEmailManagementReport: function(startDate, endDate, recipientEmail) {
 
-        // Find the dedicated report anchor system property
-        var anchorGr = new GlideRecord('sys_properties');
-        anchorGr.addQuery('name', 'x_banun_bunow_si_0.management_report_anchor');
-        anchorGr.query();
-        if (!anchorGr.next()) {
-            logs.push('ERROR: Report anchor system property not found');
-            return {
-                success: false,
-                message: 'Report anchor property not found. Please contact your administrator.',
-                logs: logs
-            };
-        }
-        var anchorSysId = anchorGr.getValue('sys_id');
-        var anchorTable = 'sys_properties';
-        logs.push('OK: Anchor property found - ' + anchorSysId);
-
-        // Clean up any existing attachments on the anchor property
-        var cleanGr = new GlideRecord('sys_attachment');
-        cleanGr.addQuery('table_name', 'sys_properties');
-        cleanGr.addQuery('table_sys_id', anchorSysId);
-        cleanGr.query();
-        var cleanCount = 0;
-        while (cleanGr.next()) {
-            cleanGr.deleteRecord();
-            cleanCount++;
-        }
-        logs.push('OK: Cleaned up ' + cleanCount + ' existing attachment(s) from anchor');
-
-        // Generate HTML
-        logs.push('INFO: Calling buildManagementReportHTML for ' + startDate + ' to ' + endDate);
-        var html = this.buildManagementReportHTML(startDate, endDate);
-        if (!html) {
-            logs.push('ERROR: buildManagementReportHTML returned null - no data in date range');
-            return {
-                success: false,
-                message: 'No data found for the selected date range.',
-                logs: logs
-            };
-        }
-        logs.push('OK: HTML generated, length = ' + html.length);
-
-        // Generate PDF
-        var hfInfo = {
-            'PageSize': 'A4',
-            'Orientation': 'LANDSCAPE',
-            'GeneratePageNumber': 'true',
-            'TopOrBottomMargin': '20',
-            'LeftOrRightMargin': '20'
-        };
-
-        var pdfFileName = 'Authority_Limits_Management_Report_' + startDate + '_to_' + endDate + '.pdf';
-        logs.push('INFO: Calling PDF API with filename ' + pdfFileName);
-
-        var pdfAPI = new sn_pdfgeneratorutils.PDFGenerationAPI();
-        var result = pdfAPI.convertToPDFWithHeaderFooter(
-            html,
-            anchorTable,
-            anchorSysId,
-            pdfFileName,
-            hfInfo
-        );
-
-        logs.push('INFO: Raw PDF result = ' + JSON.stringify(result));
-
-        if (!result) {
-            logs.push('ERROR: PDF result is null/undefined');
-            return {
-                success: false,
-                message: 'PDF generation failed. Please contact your administrator.',
-                logs: logs
-            };
-        }
-
-        for (var key in result) {
-            logs.push('INFO: result.' + key + ' = ' + result[key]);
-        }
-
-        if (!result.attachment_id) {
-            logs.push('ERROR: result.attachment_id is missing or empty');
-            return {
-                success: false,
-                message: 'PDF generation failed. Please contact your administrator.',
-                logs: logs
-            };
-        }
-        logs.push('OK: PDF generated, attachment_id = ' + result.attachment_id);
-
-        // Recipient email passed directly
-        var recipientEmail = recipientSysId; // parameter is now the email directly
-        if (!recipientEmail) {
-            logs.push('ERROR: No recipient email provided');
-            return {
-                success: false,
-                message: 'No recipient email provided.',
-                logs: logs
-            };
-        }
-        logs.push('OK: Recipient email - ' + recipientEmail);
-        // Fire event — notification handles email and attachment
-        gs.eventQueue(
-            'x_banun_bunow_si_0.management_report_gen',
-            anchorGr,
-            recipientEmail,
-            startDate + ' to ' + endDate
-        );
-        logs.push('OK: Event queued - notification will email report to ' + recipientEmail);
-
+    // Find the dedicated anchor system property used as the PDF attachment target
+    var anchorGr = new GlideRecord('sys_properties');
+    anchorGr.addQuery('name', 'x_banun_bunow_si_0.management_report_anchor');
+    anchorGr.query();
+    if (!anchorGr.next()) {
         return {
-            success: true,
-            message: 'Report sent to ' + recipientEmail,
-            logs: logs
+            success: false,
+            message: 'Report anchor property not found. Please contact your administrator.'
         };
-    },
+    }
+    var anchorSysId = anchorGr.getValue('sys_id');
+
+    // Remove any leftover attachments from previous report generations
+    var cleanGr = new GlideRecord('sys_attachment');
+    cleanGr.addQuery('table_name', 'sys_properties');
+    cleanGr.addQuery('table_sys_id', anchorSysId);
+    cleanGr.query();
+    while (cleanGr.next()) {
+        cleanGr.deleteRecord();
+    }
+
+    // Generate the report HTML
+    var html = this.buildManagementReportHTML(startDate, endDate);
+    if (!html) {
+        return {
+            success: false,
+            message: 'No data found for the selected date range.'
+        };
+    }
+
+    // Generate the PDF and attach it to the anchor property record
+    var hfInfo = {
+        'PageSize': 'A4',
+        'Orientation': 'LANDSCAPE',
+        'GeneratePageNumber': 'true',
+        'TopOrBottomMargin': '20',
+        'LeftOrRightMargin': '20'
+    };
+
+    var pdfFileName = 'Authority_Limits_Management_Report_' + startDate + '_to_' + endDate + '.pdf';
+    var pdfAPI = new sn_pdfgeneratorutils.PDFGenerationAPI();
+    var result = pdfAPI.convertToPDFWithHeaderFooter(
+        html,
+        'sys_properties',
+        anchorSysId,
+        pdfFileName,
+        hfInfo
+    );
+
+    if (!result || !result.attachment_id) {
+        return {
+            success: false,
+            message: 'PDF generation failed. Please contact your administrator.'
+        };
+    }
+
+    if (!recipientEmail) {
+        return {
+            success: false,
+            message: 'No recipient email provided.'
+        };
+    }
+
+    // Fire the event — the notification picks up the attachment and emails the report
+    gs.eventQueue(
+        'x_banun_bunow_si_0.management_report_gen',
+        anchorGr,
+        recipientEmail,
+        startDate + ' to ' + endDate
+    );
+
+    return {
+        success: true,
+        message: 'Report sent to ' + recipientEmail
+    };
+},
