@@ -132,14 +132,15 @@ emailGr.setValue('body',
 var emailSysId = emailGr.insert();
 logs.push('OK: Email record created - ' + emailSysId);
 
-// Move attachment using the attachment_id returned by the PDF API
-var attMoveGr = new GlideRecord('sys_attachment');
-if (attMoveGr.get(result.attachment_id)) {
-    logs.push('OK: Attachment found - table=' + attMoveGr.getValue('table_name') + ' sys_id=' + attMoveGr.getValue('table_sys_id'));
-    attMoveGr.setValue('table_name', 'sys_email');
-    attMoveGr.setValue('table_sys_id', emailSysId);
-    attMoveGr.update();
-    logs.push('OK: Attachment moved to email record');
+// Link attachment to email via sys_email_attachment
+var attGr = new GlideRecord('sys_attachment');
+if (attGr.get(result.attachment_id)) {
+    logs.push('OK: Attachment found - ' + attGr.getValue('file_name'));
+    var emailAttGr = new GlideRecord('sys_email_attachment');
+    emailAttGr.setValue('email', emailSysId);
+    emailAttGr.setValue('attachment', result.attachment_id);
+    emailAttGr.insert();
+    logs.push('OK: Attachment linked to email record');
 } else {
     logs.push('WARN: Attachment not found by attachment_id - ' + result.attachment_id);
 }
