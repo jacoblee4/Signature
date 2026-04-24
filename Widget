@@ -17,6 +17,10 @@
                 <input type="date" ng-model="c.endDate" class="rg-input" />
             </div>
         </div>
+        <div class="rg-field" style="margin-bottom:20px;">
+            <label>Send Report To</label>
+            <input type="email" ng-model="c.recipientEmail" class="rg-input" placeholder="email@example.com" />
+        </div>
         <button class="rg-btn" ng-click="c.generate()" ng-disabled="c.loading">
             <span ng-if="!c.loading">Generate &amp; Email Report</span>
             <span ng-if="c.loading">Generating... please wait</span>
