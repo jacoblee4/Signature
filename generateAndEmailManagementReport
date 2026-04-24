@@ -1,24 +1,29 @@
 generateAndEmailManagementReport: function(startDate, endDate, recipientSysId) {
+    var logs = [];
 
-    // Get most recently closed signature request to use as attachment anchor
+    // Get anchor record
     var anchorGr = new GlideRecord('x_banun_bunow_si_0_signature_request');
-    anchorGr.addQuery('state', 'closed_complete');
+    anchorGr.addQuery('state', '3');
     anchorGr.orderByDesc('closed_at');
     anchorGr.setLimit(1);
     anchorGr.query();
 
     if (!anchorGr.next()) {
-        gs.info('SIGNATURE REPORT: No closed_complete records found to use as attachment anchor');
-        return { success: false, message: 'No closed records found. Cannot generate report.' };
+        logs.push('ERROR: No closed_complete records found to use as attachment anchor');
+        return { success: false, message: 'No closed records found. Cannot generate report.', logs: logs };
     }
 
     var anchorSysId = anchorGr.getValue('sys_id');
+    logs.push('OK: Anchor record found - ' + anchorSysId);
 
     // Generate HTML
+    logs.push('INFO: Calling buildManagementReportHTML for ' + startDate + ' to ' + endDate);
     var html = this.buildManagementReportHTML(startDate, endDate);
     if (!html) {
-        return { success: false, message: 'No data found for the selected date range.' };
+        logs.push('ERROR: buildManagementReportHTML returned null - no data in date range');
+        return { success: false, message: 'No data found for the selected date range.', logs: logs };
     }
+    logs.push('OK: HTML generated, length = ' + html.length);
 
     // Generate PDF
     var hfInfo = {
@@ -30,6 +35,8 @@ generateAndEmailManagementReport: function(startDate, endDate, recipientSysId) {
     };
 
     var pdfFileName = 'Authority_Limits_Management_Report_' + startDate + '_to_' + endDate + '.pdf';
+    logs.push('INFO: Calling PDF API with filename ' + pdfFileName);
+
     var pdfAPI = new sn_pdfgeneratorutils.PDFGenerationAPI();
     var result = pdfAPI.convertToPDFWithHeaderFooter(
         html,
@@ -39,25 +46,42 @@ generateAndEmailManagementReport: function(startDate, endDate, recipientSysId) {
         hfInfo
     );
 
-    if (!result || !result.attachmentId) {
-        gs.info('SIGNATURE REPORT: PDF generation failed - ' + JSON.stringify(result));
-        return { success: false, message: 'PDF generation failed. Please contact your administrator.' };
+    logs.push('INFO: Raw PDF result = ' + JSON.stringify(result));
+
+    if (!result) {
+        logs.push('ERROR: PDF result is null/undefined');
+        return { success: false, message: 'PDF generation failed. Please contact your administrator.', logs: logs };
     }
 
-    // Get recipient email
+    // Log every key in result so we can see exact structure
+    for (var key in result) {
+        logs.push('INFO: result.' + key + ' = ' + result[key]);
+    }
+
+    if (!result.attachmentId) {
+        logs.push('ERROR: result.attachmentId is missing or empty');
+        return { success: false, message: 'PDF generation failed. Please contact your administrator.', logs: logs };
+    }
+    logs.push('OK: PDF generated, attachmentId = ' + result.attachmentId);
+
+    // Get recipient
     var userGr = new GlideRecord('sys_user');
     if (!userGr.get(recipientSysId)) {
-        return { success: false, message: 'Could not resolve recipient user.' };
+        logs.push('ERROR: Could not find user record for sys_id ' + recipientSysId);
+        return { success: false, message: 'Could not resolve recipient user.', logs: logs };
     }
 
     var recipientEmail = userGr.getValue('email');
     var recipientName = userGr.getValue('first_name') || 'User';
+    logs.push('OK: Recipient resolved - ' + recipientEmail);
 
     if (!recipientEmail) {
-        return { success: false, message: 'No email address found for your user account.' };
+        logs.push('ERROR: User has no email address');
+        return { success: false, message: 'No email address found for your user account.', logs: logs };
     }
 
-    // Send email with attachment
+    // Send email
+    logs.push('INFO: Sending email to ' + recipientEmail);
     var sm = new GlideEmailOutbound();
     sm.setTo(recipientEmail);
     sm.setSubject('Authority Limits Management Report: ' + startDate + ' to ' + endDate);
@@ -73,8 +97,10 @@ generateAndEmailManagementReport: function(startDate, endDate, recipientSysId) {
         pdfFileName
     );
     sm.save();
+    logs.push('OK: Email queued successfully');
 
-    // Clean up the attachment from the anchor record so we don't litter
+    // Clean up attachment
+    logs.push('INFO: Cleaning up attachment from anchor record');
     var attGr = new GlideRecord('sys_attachment');
     attGr.addQuery('table_name', 'x_banun_bunow_si_0_signature_request');
     attGr.addQuery('table_sys_id', anchorSysId);
@@ -82,7 +108,10 @@ generateAndEmailManagementReport: function(startDate, endDate, recipientSysId) {
     attGr.query();
     if (attGr.next()) {
         attGr.deleteRecord();
+        logs.push('OK: Attachment cleaned up');
+    } else {
+        logs.push('WARN: Attachment not found for cleanup - may have already been removed');
     }
 
-    return { success: true, message: 'Report sent to ' + recipientEmail };
+    return { success: true, message: 'Report sent to ' + recipientEmail, logs: logs };
 },
