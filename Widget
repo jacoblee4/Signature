@@ -184,7 +184,7 @@
 
 //Client Script
 
-api.controller = function($scope, $http) {
+api.controller = function($scope) {
     var c = this;
     c.startDate = '';
     c.endDate = '';
@@ -237,7 +237,7 @@ api.controller = function($scope, $http) {
         c.endDate = '';
         c.logs = [];
     };
-}
+};
 
 
 
