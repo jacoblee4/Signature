@@ -206,6 +206,7 @@ api.controller = function($scope, $timeout) {
     };
 
     c.generate = function() {
+        console.log('generate called, startDate:', c.startDate, 'endDate:', c.endDate, 'email:', c.recipientEmail);
         var sd = c.startDate ? c.startDate.substring(0, 10) : '';
         var ed = c.endDate ? c.endDate.substring(0, 10) : '';
 
