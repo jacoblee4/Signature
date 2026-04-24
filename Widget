@@ -19,7 +19,7 @@
         </div>
         <button class="rg-btn" ng-click="c.generate()" ng-disabled="c.loading">
             <span ng-if="!c.loading">Generate &amp; Email Report</span>
-            <span ng-if="c.loading">Generating...</span>
+            <span ng-if="c.loading">Generating... please wait</span>
         </button>
     </div>
 
@@ -34,6 +34,16 @@
         <span>&#10007;</span> {{c.message}}
         <div class="rg-again">
             <a href="" ng-click="c.reset()">Try again</a>
+        </div>
+    </div>
+
+    <!-- Debug log panel - remove once working -->
+    <div class="rg-logs" ng-if="c.logs && c.logs.length > 0">
+        <div class="rg-logs-title">Debug Log</div>
+        <div class="rg-log-line" 
+             ng-repeat="line in c.logs" 
+             ng-class="{'rg-log-ok': line.indexOf('OK:') === 0, 'rg-log-err': line.indexOf('ERROR:') === 0, 'rg-log-warn': line.indexOf('WARN:') === 0}">
+            {{line}}
         </div>
     </div>
 </div>
@@ -131,6 +141,38 @@
     text-decoration: underline;
     cursor: pointer;
 }
+.rg-logs {
+    margin-top: 20px;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    overflow: hidden;
+    font-size: 11px;
+}
+.rg-logs-title {
+    background: #343a40;
+    color: #fff;
+    padding: 6px 10px;
+    font-weight: 600;
+    font-size: 11px;
+}
+.rg-log-line {
+    padding: 3px 10px;
+    border-bottom: 1px solid #f0f0f0;
+    font-family: monospace;
+    color: #555;
+}
+.rg-log-ok {
+    color: #155724;
+    background: #f4fff6;
+}
+.rg-log-err {
+    color: #721c24;
+    background: #fff4f4;
+}
+.rg-log-warn {
+    color: #856404;
+    background: #fffdf0;
+}
 
 
 
@@ -149,6 +191,7 @@ function($scope, $http) {
     c.loading = false;
     c.status = null;
     c.message = '';
+    c.logs = [];
 
     c.generate = function() {
         if (!c.startDate || !c.endDate) {
@@ -163,12 +206,15 @@ function($scope, $http) {
         }
         c.loading = true;
         c.status = null;
+        c.logs = [];
+
         $scope.server.get({
             action: 'generate',
             startDate: c.startDate,
             endDate: c.endDate
         }).then(function(r) {
             c.loading = false;
+            c.logs = r.data.logs || [];
             if (r.data.success) {
                 c.status = 'success';
                 c.message = r.data.message;
@@ -184,6 +230,7 @@ function($scope, $http) {
         c.message = '';
         c.startDate = '';
         c.endDate = '';
+        c.logs = [];
     };
 }
 
@@ -207,5 +254,6 @@ function($scope, $http) {
         );
         data.success = result.success;
         data.message = result.message;
+        data.logs = result.logs;
     }
 })();
