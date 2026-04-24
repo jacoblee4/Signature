@@ -1,16 +1,11 @@
-OK: Anchor found in non-credit table - 5a1ff8f397148f90b9693bb3f153af7d
-INFO: Calling buildManagementReportHTML for 2025-01-01 to 2026-04-24
-OK: HTML generated, length = 24048
-INFO: Calling PDF API with filename Authority_Limits_Management_Report_2025-01-01_to_2026-04-24.pdf
-INFO: Raw PDF result = {"attachment_id":"b2fa898c976087d0b9693bb3f153afa9","message":"Conversion is successful.","request_id":"eafa898c976087d0b9693bb3f153afa6","status":"success"}
-INFO: result.attachment_id = b2fa898c976087d0b9693bb3f153afa9
-INFO: result.message = Conversion is successful.
-INFO: result.request_id = eafa898c976087d0b9693bb3f153afa6
-INFO: result.status = success
-OK: PDF generated, attachment_id = b2fa898c976087d0b9693bb3f153afa9
-OK: Recipient resolved - JPeterson@BankUnited.com
-INFO: Sending email to JPeterson@BankUnited.com
-OK: Email record created - 76fac98c976087d0b9693bb3f153af03
-WARN: Attachment not found to move to email record
-INFO: Cleaning up attachment from anchor record
-WARN: Attachment not found for cleanup - may have already been removed
+generate called, startDate: Tue Apr 14 2026 00:00:00 GMT-0400 (Eastern Daylight Time) endDate: Fri Apr 24 2026 00:00:00 GMT-0400 (Eastern Daylight Time) email: JPeterson@BankUnited.com
+js_includes_sp_libs.jsx?v=02-09-2026_2259&lp=Fri_Apr_17_22_49_57_PDT_2026&c=39_1083:145 TypeError: c.startDate.substring is not a function
+    at c.generate (generate_management_pdf.js:18:44)
+    at fn (eval at compile (js_includes_sp_libs.jsx?v=02-09-2026_2259&lp=Fri_Apr_17_22_49_57_PDT_2026&c=39_1083:263:180), <anonymous>:4:255)
+    at b (js_includes_sp_libs.jsx?v=02-09-2026_2259&lp=Fri_Apr_17_22_49_57_PDT_2026&c=39_1083:153:472)
+    at e (js_includes_sp_libs.jsx?v=02-09-2026_2259&lp=Fri_Apr_17_22_49_57_PDT_2026&c=39_1083:309:165)
+    at m.$eval (js_includes_sp_libs.jsx?v=02-09-2026_2259&lp=Fri_Apr_17_22_49_57_PDT_2026&c=39_1083:173:69)
+    at m.$apply (js_includes_sp_libs.jsx?v=02-09-2026_2259&lp=Fri_Apr_17_22_49_57_PDT_2026&c=39_1083:173:302)
+    at HTMLButtonElement.<anonymous> (js_includes_sp_libs.jsx?v=02-09-2026_2259&lp=Fri_Apr_17_22_49_57_PDT_2026&c=39_1083:309:217)
+    at HTMLButtonElement.dispatch (js_includes_sp_libs.jsx?v=02-09-2026_2259&lp=Fri_Apr_17_22_49_57_PDT_2026&c=39_1083:17:7496)
+    at r.handle (js_includes_sp_libs.jsx?v=02-09-2026_2259&lp=Fri_Apr_17_22_49_57_PDT_2026&c=39_1083:17:5569)
