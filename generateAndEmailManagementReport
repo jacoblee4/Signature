@@ -33,8 +33,6 @@ if (!anchorSysId) {
     logs.push('ERROR: No closed child records found in either table to use as attachment anchor');
     return { success: false, message: 'No closed records found. Cannot generate report.', logs: logs };
 }
-        logs.push('OK: Anchor record found - ' + anchorSysId);
-
         // Generate HTML
         logs.push('INFO: Calling buildManagementReportHTML for ' + startDate + ' to ' + endDate);
         var html = this.buildManagementReportHTML(startDate, endDate);
@@ -121,23 +119,33 @@ if (!anchorSysId) {
 
         // Send email
         logs.push('INFO: Sending email to ' + recipientEmail);
-        var sm = new GlideEmail();
-sm.setTo(recipientEmail);
-sm.setSubject('Authority Limits Management Report: ' + startDate + ' to ' + endDate);
-sm.setBody(
+       var emailGr = new GlideRecord('sys_email');
+emailGr.setValue('type', 'send');
+emailGr.setValue('to', recipientEmail);
+emailGr.setValue('subject', 'Authority Limits Management Report: ' + startDate + ' to ' + endDate);
+emailGr.setValue('body',
     'Hello ' + recipientName + ',\n\n' +
     'Please find attached the Authority Limits Management Report for the period ' + startDate + ' to ' + endDate + '.\n\n' +
     'This report was generated on ' + new GlideDateTime().getDisplayValue() + '.\n\n' +
     'This is an automated message. Please do not reply to this email.'
 );
-sm.addAttachment(
-    'x_banun_bunow_si_0_signature_request',
-    anchorSysId,
-    pdfFileName
-);
-sm.save();
-logs.push('OK: Email queued successfully');
+var emailSysId = emailGr.insert();
+logs.push('OK: Email record created - ' + emailSysId);
 
+// Move attachment from anchor record to email record
+var attMoveGr = new GlideRecord('sys_attachment');
+attMoveGr.addQuery('table_name', anchorTable);
+attMoveGr.addQuery('table_sys_id', anchorSysId);
+attMoveGr.addQuery('file_name', pdfFileName);
+attMoveGr.query();
+if (attMoveGr.next()) {
+    attMoveGr.setValue('table_name', 'sys_email');
+    attMoveGr.setValue('table_sys_id', emailSysId);
+    attMoveGr.update();
+    logs.push('OK: Attachment moved to email record');
+} else {
+    logs.push('WARN: Attachment not found to move to email record');
+}
         // Clean up attachment
         logs.push('INFO: Cleaning up attachment from anchor record');
         var attGr = new GlideRecord('sys_attachment');
