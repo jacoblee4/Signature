@@ -186,55 +186,36 @@
 
 api.controller = function($scope) {
     var c = this;
-    c.startDate = '';
-    c.endDate = '';
     c.loading = false;
     c.status = null;
     c.message = '';
     c.logs = [];
 
     c.generate = function() {
-        if (!c.startDate || !c.endDate) {
-            c.status = 'error';
-            c.message = 'Please select both a start date and end date.';
-            return;
-        }
-        if (c.startDate > c.endDate) {
-            c.status = 'error';
-            c.message = 'Start date must be before end date.';
-            return;
-        }
         c.loading = true;
         c.status = null;
         c.logs = [];
 
         $scope.server.get({
             action: 'generate',
-            startDate: c.startDate.substring(0, 10),
-            endDate: c.endDate.substring(0, 10)
+            startDate: '2025-01-01',
+            endDate: '2026-04-24'
         }).then(function(r) {
             c.loading = false;
-            c.logs = r.data.logs || [];
-            if (r.data.success) {
-                c.status = 'success';
-                c.message = r.data.message;
-            } else {
-                c.status = 'error';
-                c.message = r.data.message || 'An unknown error occurred.';
-            }
+            c.logs = r.data.logs || ['No logs returned'];
+            c.status = r.data.success ? 'success' : 'error';
+            c.message = r.data.message || 'No message returned';
         }, function(err) {
             c.loading = false;
             c.status = 'error';
-            c.message = 'Server error: ' + JSON.stringify(err);
-            c.logs = ['ERROR: Server call failed - ' + JSON.stringify(err)];
+            c.message = 'FAILED';
+            c.logs = ['ERROR: ' + JSON.stringify(err)];
         });
     };
 
     c.reset = function() {
         c.status = null;
         c.message = '';
-        c.startDate = '';
-        c.endDate = '';
         c.logs = [];
     };
 };
