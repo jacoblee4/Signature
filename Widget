@@ -220,8 +220,13 @@ function($scope, $http) {
                 c.message = r.data.message;
             } else {
                 c.status = 'error';
-                c.message = r.data.message;
+                c.message = r.data.message || 'An unknown error occurred.';
             }
+        }, function(err) {
+            c.loading = false;
+            c.status = 'error';
+            c.message = 'Server error: ' + JSON.stringify(err);
+            c.logs = ['ERROR: Server call failed - ' + JSON.stringify(err)];
         });
     };
 
@@ -241,19 +246,24 @@ function($scope, $http) {
 
 
 
-
 // Server script
 
 (function() {
     if (input && input.action === 'generate') {
-        var helper = new x_banun_bunow_si_0.SignatureHelper();
-        var result = helper.generateAndEmailManagementReport(
-            input.startDate,
-            input.endDate,
-            gs.getUserID()
-        );
-        data.success = result.success;
-        data.message = result.message;
-        data.logs = result.logs;
+        try {
+            var helper = new x_banun_bunow_si_0.SignatureHelper();
+            var result = helper.generateAndEmailManagementReport(
+                input.startDate,
+                input.endDate,
+                gs.getUserID()
+            );
+            data.success = result.success;
+            data.message = result.message;
+            data.logs = result.logs;
+        } catch(e) {
+            data.success = false;
+            data.message = 'Exception: ' + e.message;
+            data.logs = ['ERROR: Uncaught exception - ' + e.message + ' | Stack: ' + e.stack];
+        }
     }
 })();
