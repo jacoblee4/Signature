@@ -210,8 +210,8 @@ function($scope, $http) {
 
         $scope.server.get({
             action: 'generate',
-            startDate: c.startDate,
-            endDate: c.endDate
+            startDate: c.startDate.substring(0, 10),
+            endDate: c.endDate.substring(0, 10)
         }).then(function(r) {
             c.loading = false;
             c.logs = r.data.logs || [];
