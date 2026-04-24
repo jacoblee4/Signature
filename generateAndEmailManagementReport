@@ -106,22 +106,22 @@ generateAndEmailManagementReport: function(startDate, endDate, recipientSysId) {
 
         // Send email
         logs.push('INFO: Sending email to ' + recipientEmail);
-        var sm = new GlideEmailOutbound();
-        sm.setTo(recipientEmail);
-        sm.setSubject('Authority Limits Management Report: ' + startDate + ' to ' + endDate);
-        sm.setBody(
-            'Hello ' + recipientName + ',\n\n' +
-            'Please find attached the Authority Limits Management Report for the period ' + startDate + ' to ' + endDate + '.\n\n' +
-            'This report was generated on ' + new GlideDateTime().getDisplayValue() + '.\n\n' +
-            'This is an automated message. Please do not reply to this email.'
-        );
-        sm.addAttachment(
-            'x_banun_bunow_si_0_signature_request',
-            anchorSysId,
-            pdfFileName
-        );
-        sm.save();
-        logs.push('OK: Email queued successfully');
+        var sm = new GlideEmail();
+sm.setTo(recipientEmail);
+sm.setSubject('Authority Limits Management Report: ' + startDate + ' to ' + endDate);
+sm.setBody(
+    'Hello ' + recipientName + ',\n\n' +
+    'Please find attached the Authority Limits Management Report for the period ' + startDate + ' to ' + endDate + '.\n\n' +
+    'This report was generated on ' + new GlideDateTime().getDisplayValue() + '.\n\n' +
+    'This is an automated message. Please do not reply to this email.'
+);
+sm.addAttachment(
+    'x_banun_bunow_si_0_signature_request',
+    anchorSysId,
+    pdfFileName
+);
+sm.save();
+logs.push('OK: Email queued successfully');
 
         // Clean up attachment
         logs.push('INFO: Cleaning up attachment from anchor record');
