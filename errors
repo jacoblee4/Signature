@@ -1,1 +1,16 @@
-ERROR: Uncaught exception - Cannot find function setTo in object com.glide.notification.outbound.ScopedEmailOutbound@45330d3b. | Stack: at sys_script_include.131ce9611bb22ed0f5b0cbfa234bcbfb.script:1746 (generateAndEmailManagementReport) at sp_widget.11038d3b97548f90b9693bb3f153afb6.script:8 at sp_widget.11038d3b97548f90b9693bb3f153afb6.script:1 at sp_widget.11038d3b97548f90b9693bb3f153afb6.script:21
+OK: Anchor found in non-credit table - 5a1ff8f397148f90b9693bb3f153af7d
+INFO: Calling buildManagementReportHTML for 2025-01-01 to 2026-04-24
+OK: HTML generated, length = 24048
+INFO: Calling PDF API with filename Authority_Limits_Management_Report_2025-01-01_to_2026-04-24.pdf
+INFO: Raw PDF result = {"attachment_id":"b2fa898c976087d0b9693bb3f153afa9","message":"Conversion is successful.","request_id":"eafa898c976087d0b9693bb3f153afa6","status":"success"}
+INFO: result.attachment_id = b2fa898c976087d0b9693bb3f153afa9
+INFO: result.message = Conversion is successful.
+INFO: result.request_id = eafa898c976087d0b9693bb3f153afa6
+INFO: result.status = success
+OK: PDF generated, attachment_id = b2fa898c976087d0b9693bb3f153afa9
+OK: Recipient resolved - JPeterson@BankUnited.com
+INFO: Sending email to JPeterson@BankUnited.com
+OK: Email record created - 76fac98c976087d0b9693bb3f153af03
+WARN: Attachment not found to move to email record
+INFO: Cleaning up attachment from anchor record
+WARN: Attachment not found for cleanup - may have already been removed
