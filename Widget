@@ -192,25 +192,52 @@ api.controller = function($scope) {
     c.message = '';
     c.logs = [];
 
+    // Default dates - yesterday to today
+    var today = new Date();
+    var yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+
+    function formatDate(d) {
+        var mm = d.getMonth() + 1;
+        var dd = d.getDate();
+        return d.getFullYear() + '-' + (mm < 10 ? '0' + mm : mm) + '-' + (dd < 10 ? '0' + dd : dd);
+    }
+
+    c.startDate = formatDate(yesterday);
+    c.endDate = formatDate(today);
+    c.recipientEmail = data.currentUserEmail || '';
+
     c.generate = function() {
+        var sd = c.startDate ? c.startDate.substring(0, 10) : 'MISSING';
+        var ed = c.endDate ? c.endDate.substring(0, 10) : 'MISSING';
+
+        if (sd === 'MISSING' || ed === 'MISSING') {
+            c.status = 'error';
+            c.message = 'Please select both a start date and end date.';
+            return;
+        }
+
+        if (sd > ed) {
+            c.status = 'error';
+            c.message = 'Start date must be before end date.';
+            return;
+        }
+
+        if (!c.recipientEmail) {
+            c.status = 'error';
+            c.message = 'Please enter a recipient email address.';
+            return;
+        }
+
         c.loading = true;
         c.status = null;
         c.logs = [];
-			
-			var sd = c.startDate ? c.startDate.substring(0, 10) : 'MISSING';
-			var ed = c.endDate ? c.endDate.substring(0, 10) : 'MISSING';
-			
-			if (sd === 'MISSING' || ed == 'MISSING'){
-				c.loading = false;
-        c.status = 'error';
-        c.message = 'error';
-			}
-			
 
         $scope.server.get({
             action: 'generate',
             startDate: sd,
-            endDate: ed
+            endDate: ed,
+            recipientEmail: c.recipientEmail
         }).then(function(r) {
             c.loading = false;
             c.logs = r.data.logs || ['No logs returned'];
@@ -228,6 +255,8 @@ api.controller = function($scope) {
         c.status = null;
         c.message = '';
         c.logs = [];
+        c.startDate = formatDate(yesterday);
+        c.endDate = formatDate(today);
     };
 };
 
@@ -241,13 +270,19 @@ api.controller = function($scope) {
 // Server script
 
 (function() {
+    // Always provide current user email for default
+    var currentUser = new GlideRecord('sys_user');
+    if (currentUser.get(gs.getUserID())) {
+        data.currentUserEmail = currentUser.getValue('email') || '';
+    }
+
     if (input && input.action === 'generate') {
         try {
             var helper = new x_banun_bunow_si_0.SignatureHelper();
             var result = helper.generateAndEmailManagementReport(
                 input.startDate,
                 input.endDate,
-                gs.getUserID()
+                input.recipientEmail
             );
             data.success = result.success;
             data.message = result.message;
@@ -259,4 +294,3 @@ api.controller = function($scope) {
         }
     }
 })();
-
