@@ -6,7 +6,7 @@
         <p>Select a date range and generate the report. It will be emailed to you as a PDF.</p>
     </div>
 
-    <div class="rg-form" ng-if="!c.status">
+    <div class="rg-form" ng-show="!c.status">
         <div class="rg-row">
             <div class="rg-field">
                 <label>Start Date</label>
@@ -299,3 +299,4 @@ api.controller = function($scope, $timeout) {
         }
     }
 })();
+
