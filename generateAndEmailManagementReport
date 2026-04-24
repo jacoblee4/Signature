@@ -2,22 +2,37 @@ generateAndEmailManagementReport: function(startDate, endDate, recipientSysId) {
         var logs = [];
 
         // Get anchor record
-        var anchorGr = new GlideRecord('x_banun_bunow_si_0_signature_request');
-        anchorGr.addQuery('state', '3');
-        anchorGr.orderByDesc('closed_at');
-        anchorGr.setLimit(1);
-        anchorGr.query();
+       var anchorTable = null;
+var anchorSysId = null;
 
-        if (!anchorGr.next()) {
-            logs.push('ERROR: No closed_complete records found to use as attachment anchor');
-            return {
-                success: false,
-                message: 'No closed records found. Cannot generate report.',
-                logs: logs
-            };
-        }
+var ncAnchor = new GlideRecord('x_banun_bunow_si_0_non_credit_authority_limits');
+ncAnchor.addQuery('state', '3');
+ncAnchor.orderByDesc('closed_at');
+ncAnchor.setLimit(1);
+ncAnchor.query();
+if (ncAnchor.next()) {
+    anchorTable = 'x_banun_bunow_si_0_non_credit_authority_limits';
+    anchorSysId = ncAnchor.getValue('sys_id');
+    logs.push('OK: Anchor found in non-credit table - ' + anchorSysId);
+}
 
-        var anchorSysId = anchorGr.getValue('sys_id');
+if (!anchorSysId) {
+    var crAnchor = new GlideRecord('x_banun_bunow_si_0_credit_authority_limits');
+    crAnchor.addQuery('state', '3');
+    crAnchor.orderByDesc('closed_at');
+    crAnchor.setLimit(1);
+    crAnchor.query();
+    if (crAnchor.next()) {
+        anchorTable = 'x_banun_bunow_si_0_credit_authority_limits';
+        anchorSysId = crAnchor.getValue('sys_id');
+        logs.push('OK: Anchor found in credit table - ' + anchorSysId);
+    }
+}
+
+if (!anchorSysId) {
+    logs.push('ERROR: No closed child records found in either table to use as attachment anchor');
+    return { success: false, message: 'No closed records found. Cannot generate report.', logs: logs };
+}
         logs.push('OK: Anchor record found - ' + anchorSysId);
 
         // Generate HTML
@@ -47,12 +62,12 @@ generateAndEmailManagementReport: function(startDate, endDate, recipientSysId) {
 
         var pdfAPI = new sn_pdfgeneratorutils.PDFGenerationAPI();
         var result = pdfAPI.convertToPDFWithHeaderFooter(
-            html,
-            'x_banun_bunow_si_0_signature_request',
-            anchorSysId,
-            pdfFileName,
-            hfInfo
-        );
+    html,
+    anchorTable,
+    anchorSysId,
+    pdfFileName,
+    hfInfo
+);
 
         logs.push('INFO: Raw PDF result = ' + JSON.stringify(result));
 
@@ -126,7 +141,7 @@ logs.push('OK: Email queued successfully');
         // Clean up attachment
         logs.push('INFO: Cleaning up attachment from anchor record');
         var attGr = new GlideRecord('sys_attachment');
-        attGr.addQuery('table_name', 'x_banun_bunow_si_0_signature_request');
+        attGr.addQuery('table_name', anchorTable);
         attGr.addQuery('table_sys_id', anchorSysId);
         attGr.addQuery('file_name', pdfFileName);
         attGr.query();
