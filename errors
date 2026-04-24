@@ -1,11 +1,1 @@
-Debug Log
-OK: Anchor record found - 890fbcf397148f90b9693bb3f153af02
-INFO: Calling buildManagementReportHTML for 2026-04-20T04:00:00.000Z to 2026-04-24T04:00:00.000Z
-OK: HTML generated, length = 15195
-INFO: Calling PDF API with filename Authority_Limits_Management_Report_2026-04-20T04:00:00.000Z_to_2026-04-24T04:00:00.000Z.pdf
-INFO: Raw PDF result = {"attachment_id":"770d6484976847d0b9693bb3f153aff2","message":"Conversion is successful.","request_id":"670d6484976847d0b9693bb3f153aff1","status":"success"}
-INFO: result.attachment_id = 770d6484976847d0b9693bb3f153aff2
-INFO: result.message = Conversion is successful.
-INFO: result.request_id = 670d6484976847d0b9693bb3f153aff1
-INFO: result.status = success
-ERROR: result.attachmentId is missing or empty
+ERROR: Uncaught exception - Cannot find function setTo in object com.glide.notification.outbound.ScopedEmailOutbound@45330d3b. | Stack: at sys_script_include.131ce9611bb22ed0f5b0cbfa234bcbfb.script:1746 (generateAndEmailManagementReport) at sp_widget.11038d3b97548f90b9693bb3f153afb6.script:8 at sp_widget.11038d3b97548f90b9693bb3f153afb6.script:1 at sp_widget.11038d3b97548f90b9693bb3f153afb6.script:21
