@@ -40,16 +40,6 @@
             <a href="" ng-click="c.reset()">Try again</a>
         </div>
     </div>
-
-    <!-- Debug log panel - remove once working -->
-    <div class="rg-logs" ng-if="c.logs && c.logs.length > 0">
-        <div class="rg-logs-title">Debug Log</div>
-        <div class="rg-log-line" 
-             ng-repeat="line in c.logs" 
-             ng-class="{'rg-log-ok': line.indexOf('OK:') === 0, 'rg-log-err': line.indexOf('ERROR:') === 0, 'rg-log-warn': line.indexOf('WARN:') === 0}">
-            {{line}}
-        </div>
-    </div>
 </div>
 
 
@@ -144,38 +134,6 @@
     text-decoration: underline;
     cursor: pointer;
 }
-.rg-logs {
-    margin-top: 20px;
-    border: 1px solid #dee2e6;
-    border-radius: 4px;
-    overflow: hidden;
-    font-size: 11px;
-}
-.rg-logs-title {
-    background: #343a40;
-    color: #fff;
-    padding: 6px 10px;
-    font-weight: 600;
-    font-size: 11px;
-}
-.rg-log-line {
-    padding: 3px 10px;
-    border-bottom: 1px solid #f0f0f0;
-    font-family: monospace;
-    color: #555;
-}
-.rg-log-ok {
-    color: #155724;
-    background: #f4fff6;
-}
-.rg-log-err {
-    color: #721c24;
-    background: #fff4f4;
-}
-.rg-log-warn {
-    color: #856404;
-    background: #fffdf0;
-}
 
 
 
@@ -194,41 +152,42 @@ api.controller = function($scope, $timeout) {
     c.loading = false;
     c.status = null;
     c.message = '';
-    c.logs = [];
     c.startDate = '';
     c.endDate = '';
     c.recipientEmail = '';
 
+    // On init, default the recipient email to the logged-in user's email
     c.$onInit = function() {
         $timeout(function() {
             c.recipientEmail = c.data.currentUserEmail || '';
         }, 100);
     };
 
-    c.generate = function() {
-        function toDateString(d) {
-            if (!d) return '';
-            if (typeof d === 'string') return d.substring(0, 10);
-            var mm = d.getMonth() + 1;
-            var dd = d.getDate();
-            return d.getFullYear() + '-' + (mm < 10 ? '0' + mm : mm) + '-' + (dd < 10 ? '0' + dd : dd);
-        }
+    // Convert a value to a YYYY-MM-DD string regardless of whether it is a
+    // Date object (as AngularJS date inputs return) or already a string
+    function toDateString(d) {
+        if (!d) return '';
+        if (typeof d === 'string') return d.substring(0, 10);
+        var mm = d.getMonth() + 1;
+        var dd = d.getDate();
+        return d.getFullYear() + '-' + (mm < 10 ? '0' + mm : mm) + '-' + (dd < 10 ? '0' + dd : dd);
+    }
 
+    c.generate = function() {
         var sd = toDateString(c.startDate);
         var ed = toDateString(c.endDate);
 
+        // Validate inputs before calling the server
         if (!sd || !ed) {
             c.status = 'error';
             c.message = 'Please select both a start date and end date.';
             return;
         }
-
         if (sd > ed) {
             c.status = 'error';
             c.message = 'Start date must be before end date.';
             return;
         }
-
         if (!c.recipientEmail) {
             c.status = 'error';
             c.message = 'Please enter a recipient email address.';
@@ -237,7 +196,6 @@ api.controller = function($scope, $timeout) {
 
         c.loading = true;
         c.status = null;
-        c.logs = [];
 
         c.server.get({
             action: 'generate',
@@ -246,21 +204,20 @@ api.controller = function($scope, $timeout) {
             recipientEmail: c.recipientEmail
         }).then(function(r) {
             c.loading = false;
-            c.logs = r.data.logs || ['No logs returned'];
             c.status = r.data.success ? 'success' : 'error';
-            c.message = r.data.message || 'No message returned';
-        }, function(err) {
+            c.message = r.data.message || 'An unknown error occurred.';
+        }, function() {
+            // Handle unexpected server-side failures
             c.loading = false;
             c.status = 'error';
-            c.message = 'Server call failed.';
-            c.logs = ['ERROR: ' + JSON.stringify(err)];
+            c.message = 'An unexpected error occurred. Please try again or contact your administrator.';
         });
     };
 
+    // Reset the form back to its initial state
     c.reset = function() {
         c.status = null;
         c.message = '';
-        c.logs = [];
         c.startDate = '';
         c.endDate = '';
     };
@@ -275,12 +232,14 @@ api.controller = function($scope, $timeout) {
 // Server script
 
 (function() {
-    // Always provide current user email for default - runs on every page load
+
+    // Always resolve the logged-in user's email for the recipient field default
     var currentUser = new GlideRecord('sys_user');
     if (currentUser.get(gs.getUserID())) {
         data.currentUserEmail = currentUser.getValue('email') || '';
     }
 
+    // Handle report generation request
     if (input && input.action === 'generate') {
         try {
             var helper = new x_banun_bunow_si_0.SignatureHelper();
@@ -291,12 +250,10 @@ api.controller = function($scope, $timeout) {
             );
             data.success = result.success;
             data.message = result.message;
-            data.logs = result.logs;
         } catch(e) {
             data.success = false;
-            data.message = 'Exception: ' + e.message;
-            data.logs = ['ERROR: Uncaught exception - ' + e.message + ' | Stack: ' + e.stack];
+            data.message = 'An unexpected error occurred. Please contact your administrator.';
         }
     }
-})();
 
+})();
